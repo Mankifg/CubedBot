@@ -4,29 +4,76 @@ import requests, json
 
 from datetime import datetime as dt
 
+import functions
 import db
 
+mod_roles = db.load_second_table_idd(2) # role
+mod_roles = mod_roles["data"]
+mod_roles = list(map(int,mod_roles))
 
-class newweakCog(commands.Cog, name="newweak command"):
+
+def real_week():
+    now = dt.now()
+    return f"{now.year}-{now.isocalendar()[1]}"
+
+class newweekCog(commands.Cog, name="newweek command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
 
     @discord.command(
-        name="newweak",
+        name="newweek",
         usage="",
-        description="Gives a newweak for essentially everything.",
+        description="MOD: Changes next week/week name, because we can't trust calendar.",
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
-    async def newweak(self, ctx, weak: str):
+    async def newweek(self, ctx, week:str=None):
         
-        current_weak = db.load_second_table_iddata(1)  # weak
+        role_ids = [role.id for role in ctx.author.roles]
         
-        current_weak = current_weak["data"]
+        passed = functions.any_object_same(role_ids,mod_roles)
         
-        print(current_weak)
+                
+        if not passed:
+            q = discord.Embed(title="no",color=discord.Color.red())
+            await ctx.respond(embed=q,ephemeral=True)
+            return
+        
+        cw = db.load_second_table_idd(1)  # week
+        
+        all_week_data = cw["data"]["old"]
+        current_week = cw["data"]["data"]
+        
+    
+        
+        if week in all_week_data and not week is None:
+            q = discord.Embed(title="This week name is already in database",description="And you don't want to change that")
+            q.add_field(name="Please use new name.",value="thanks")
+            
+            q.set_footer(text=f"Just to lyk calander week is {real_week()}, but it may or may not be in db.") # leet you know
+            await ctx.send(embed=q)
+            return
+        
+        if not week in all_week_data: 
+            current_week = week
+            q = discord.Embed(title=f"Changed week name. -> {current_week}")
+            cw["data"]["data"] = current_week
+            cw["data"]["old"].append(current_week)
+            db.save_second_table_idd(cw)
+            
+            await ctx.send(embed=q)
+            return 
+        
+        
+        
+        if week is None:
+            q = discord.Embed(title="Looks like you didn't supliled week name")
+            q.set_footer(text=f"Just to lyk calander week is {real_week()}, but it may or may not be in db.") # leet you know
+            
+            await ctx.send(embed=q)
+            return
 
-        current_weak = weak
+            
 
 
 def setup(bot: commands.Bot):
-    bot.add_cog(newweakCog(bot))
+    bot.add_cog(newweekCog(bot))

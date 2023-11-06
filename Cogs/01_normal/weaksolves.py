@@ -10,17 +10,17 @@ import db
 from hardstorage import *
 
 
-class weaksolvesCog(commands.Cog, name="weaksolves command"):
+class weeksolvesCog(commands.Cog, name="weeksolves command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
 
     @discord.command(
-        name="weaksolves",
+        name="weeksolves",
         usage="",
         description="Prikaže tedenske rezultate za izbranega uporabnika",
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
-    async def weaksolves(self, ctx, member: discord.Member = None):
+    async def weeksolves(self, ctx, member: discord.Member = None):
         if member == None:
             userObj = ctx.author
         else:
@@ -31,11 +31,11 @@ class weaksolvesCog(commands.Cog, name="weaksolves command"):
         user_data = db.get_user_data(userObj.id)
         # {'user_id': 650756055390879757, 'wca_id': '', 'data': {"solves": [],adata': {'created_at': 1697998640}}}
 
-        c_weak = functions.this_weak()
-        # YYYY-WN weak num
+        c_week = functions.this_week()
+        # YYYY-WN week num
         f = False
         for i in range(len(user_data["data"]["solves"])):
-            if user_data["data"]["solves"][i]["weak"] == c_weak:
+            if user_data["data"]["solves"][i]["week"] == c_week:
                 x = i
                 f = True
                 break
@@ -43,21 +43,21 @@ class weaksolvesCog(commands.Cog, name="weaksolves command"):
         if not f:
             #! Error
             print("Not founddd")
-            weak_time = []
+            week_time = []
         else:
-            weak_time = user_data["data"]["solves"][x]["data"]
+            week_time = user_data["data"]["solves"][x]["data"]
 
         q = discord.Embed(title="Solves")
         q.set_author(name=userObj.display_name, icon_url=userObj.avatar)
 
-        if weak_time == []:
+        if week_time == []:
             q.add_field(
                 name="No data found", value="Plase submit (ask user to) send solves."
             )
             q.set_footer(text="If you believe this is an error please report it.")
 
         else:
-            for elem in weak_time:
+            for elem in week_time:
                 # {'id': '333', 'data': ['1', '1', '1', '1', '1']}
 
                 # *print(f"elem - {elem}")
@@ -75,4 +75,4 @@ class weaksolvesCog(commands.Cog, name="weaksolves command"):
 
 
 def setup(bot: commands.Bot):
-    bot.add_cog(weaksolvesCog(bot))
+    bot.add_cog(weeksolvesCog(bot))

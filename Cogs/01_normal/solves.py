@@ -47,11 +47,11 @@ class MyModal(discord.ui.Modal):
         user_data = db.get_user_data(user_id)
         solves_data = user_data["data"]["solves"]
 
-        weak_times = functions.find_in_array_with_id(
-            solves_data, functions.this_weak(), "weak"
+        week_times = functions.find_in_array_with_id(
+            solves_data, functions.this_week(), "week"
         )
         # none if first inp
-        print(f"this weak:\n{weak_times}")
+        print(f"this week:\n{week_times}")
 
         used_ids = []
 
@@ -63,25 +63,25 @@ class MyModal(discord.ui.Modal):
         else:
             return 1
 
-        if weak_times is not None:
+        if week_times is not None:
 
-            actual_weak_data = weak_times["data"]
+            actual_week_data = week_times["data"]
         else:
-            actual_weak_data = []
+            actual_week_data = []
 
-        print(f"{actual_weak_data=}")
+        print(f"{actual_week_data=}")
 
         for i in range(len(using_ids)):
             event_id = using_ids[i]
             translated = DICTIONARY.get(event_id)
-            value_from_weak_with_id = functions.find_in_array_with_id(
-                actual_weak_data, event_id, "id"
+            value_from_week_with_id = functions.find_in_array_with_id(
+                actual_week_data, event_id, "id"
             )
-            if value_from_weak_with_id is not None:
+            if value_from_week_with_id is not None:
 
-                value_from_weak_with_id = value_from_weak_with_id.get("data")
+                value_from_week_with_id = value_from_week_with_id.get("data")
             value_to_display = functions.db_times_to_user_format(
-                value_from_weak_with_id
+                value_from_week_with_id
             )
 
             self.add_item(
@@ -113,23 +113,23 @@ class MyModal(discord.ui.Modal):
         user_data = db.get_user_data(user_id)
         solves_data = user_data["data"]["solves"]
 
-        weak_time = functions.find_in_array_with_id(
-            solves_data, functions.this_weak(), "weak"
+        week_time = functions.find_in_array_with_id(
+            solves_data, functions.this_week(), "week"
         )
         print("A" * 10)
         print(solves_data)
-        print(weak_time)
+        print(week_time)
 
-        if weak_time is None:
-            weak_time = {"data": None}
-            weak_time["data"] = None
+        if week_time is None:
+            week_time = {"data": None}
+            week_time["data"] = None
 
-        comb_data = functions.combine_two(weak_time["data"], data)
+        comb_data = functions.combine_two(week_time["data"], data)
 
         print(comb_data)
 
         print(".")
-        packaged_data = {"weak": functions.this_weak(), "data": comb_data}
+        packaged_data = {"week": functions.this_week(), "data": comb_data}
 
         print(packaged_data)
         print("before")
@@ -138,7 +138,7 @@ class MyModal(discord.ui.Modal):
 
         got = False
         for i in range(len(user_data["data"]["solves"])):
-            if user_data["data"]["solves"][i]["weak"] == packaged_data["weak"]:
+            if user_data["data"]["solves"][i]["week"] == packaged_data["week"]:
                 x = i
                 print("found")
                 got = True
@@ -154,12 +154,12 @@ class MyModal(discord.ui.Modal):
         db.save_user_data(user_data)
         print("saving", user_data)
 
-        c_weak = functions.this_weak()
-        # YYYY-WN weak num
+        c_week = functions.this_week()
+        # YYYY-WN week num
 
         f = False
         for i in range(len(user_data["data"]["solves"])):
-            if user_data["data"]["solves"][i]["weak"] == c_weak:
+            if user_data["data"]["solves"][i]["week"] == c_week:
                 x = i
                 f = True
                 break
@@ -167,12 +167,12 @@ class MyModal(discord.ui.Modal):
         if not f:
             #! Error
             print("Not founddd")
-            weak_time = []
+            week_time = []
         else:
-            weak_data = user_data["data"]["solves"][x]["data"]
+            week_data = user_data["data"]["solves"][x]["data"]
 
         print("??" * 5)
-        print(weak_data)
+        print(week_data)
         print("??" * 5)
 
         userObj = interaction.user
@@ -180,14 +180,14 @@ class MyModal(discord.ui.Modal):
         q = discord.Embed(title="Solves")
         q.set_author(name=userObj.display_name, icon_url=userObj.avatar)
 
-        if weak_time == []:
+        if week_time == []:
             q.add_field(
                 name="No data found", value="Plase submit (ask user to) send solves."
             )
             q.set_footer(text="If you believe this is an error please report it.")
 
         else:
-            for elem in weak_data:
+            for elem in week_data:
                 # {'id': '333', 'data': ['1', '1', '1', '1', '1']}
 
                 # *print(f"elem - {elem}")

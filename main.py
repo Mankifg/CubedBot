@@ -21,7 +21,7 @@ with open("settings.json", "r") as config:
     prefix = data["prefix"]
     owner_id = data["owner_id"]
 
-status = cycle(["Made by Mankifg#1810"])
+status = cycle(["Made by Mankifg","Some commands are used, because we can't trust the calendar."])
 
 
 @tasks.loop(seconds=10)

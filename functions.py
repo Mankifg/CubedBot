@@ -6,6 +6,7 @@ from hardstorage import *
 
 import db
 
+
 class SkillIssue(Exception):
     print(Exception)
 
@@ -34,6 +35,8 @@ def avg_of(solves, a_type):
     # ? 3. mo3
     if averge_mode == "bo3" or averge_mode == "bo5":
         solves = list(filter(lambda a: a != -1, solves))
+        if len(solves) == 0:
+            return -1
         return min(solves)
 
     elif averge_mode == "ao5":
@@ -129,6 +132,16 @@ def db_times_to_user_format(array_of_times):
 
 def parse_times(times, event_id):
     # if event id in mo3 or bo3 only 3
+    
+    if event_id in AO5:
+        averge_mode = "ao5"
+    elif event_id in BO3:
+        averge_mode = "bo3"
+    elif event_id in MO3:
+        averge_mode = "mo3"
+    else:
+        raise SkillIssue(f"it appears that {event_id} isn't in any group")
+    
     times = times.lower()
     times = times.replace(" ", "")
 
@@ -145,6 +158,9 @@ def parse_times(times, event_id):
 
     if len(t) > 5:
         t = t[0:5]
+        
+    if averge_mode == "mo3" or averge_mode == "bo3":
+        t = t[0:3]
 
     if len(t) < 5:
         for _ in range(5 - len(t)):
@@ -158,9 +174,16 @@ def parse_times(times, event_id):
     return t
 
 
-def this_weak():
+"""
+def this_week():
     now = dt.now()
     return f"{now.year}-{now.isocalendar()[1]}"
+"""
+
+
+def this_week():
+    week = db.load_second_table_idd(1)
+    return week["data"]["data"]
 
 
 def find_in_array_with_id(arry, id, what):
@@ -234,6 +257,8 @@ def beutify(arry, event_id):
     # ? [10, 20, 30, 40, 50] 5x time in centisec
 
     avg = avg_of(arry[:], event_id)
+    if event_id in BO3 or event_id in MO3:
+        arry = arry[0:3]
 
     for i in range(len(arry)):
         print(arry[i], readify(arry[i]))
@@ -246,17 +271,18 @@ def beutify(arry, event_id):
 
 def generate_all_important_data(data):
 
-    weak = this_weak()
+    week = this_week()
 
     important_data = []
 
     for user_data in data:
         u_data = user_data["data"]["solves"]
         user_id = user_data["user_id"]
-        w_data = find_in_array_with_id(u_data, weak, "weak")
-        w_data = w_data["data"]
+        w_data = find_in_array_with_id(u_data, week, "week")
+        if not w_data is None:
+            w_data = w_data["data"]
 
-        important_data.append({"user_id": user_id, "data": w_data})
+            important_data.append({"user_id": user_id, "data": w_data})
 
     return important_data
 
@@ -266,7 +292,7 @@ def get_diff_ids_from_importantant_data(important_data):
     diff_ids = []
 
     for u_data in important_data:
-        d_data = u_data["data"]
+        d_data = u_data.get("data")
         for category in d_data:
 
             if not category["id"] in diff_ids:
@@ -335,6 +361,7 @@ def place_symbol(place):
 
     return sym
 
+
 def place_symbol_for_all(place):
     sym = "🟨"
 
@@ -347,13 +374,22 @@ def place_symbol_for_all(place):
 
     return sym
 
+
 def give_user_points(data):
     for user_data in data:
         user_id = user_data["user_id"]
         points = user_data["points"]
-        
+
         db_user_data = db.get_user_data(user_id)
-        
+
         db_user_data["data"]["adata"]["points"] += points
-        
+
         db.save_user_data(db_user_data)
+
+def any_object_same(a1,a2):
+    passed = False
+    for idd in a2:
+        if idd in a1:
+            return True
+        
+    return False

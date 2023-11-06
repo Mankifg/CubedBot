@@ -9,25 +9,39 @@ import db
 
 from hardstorage import *
 
+mod_roles = db.load_second_table_idd(2) # role
+mod_roles = mod_roles["data"]
+mod_roles = list(map(int,mod_roles))
+
 
 class resultsCog(commands.Cog, name="results command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
 
-    @discord.command(name="results", usage="", description="Skupni tedenski rezultati")
+    @discord.command(name="results", usage="", description="MOD: Skupni tedenski rezultati")
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def results(self, ctx,add_points:bool):
+        
+        role_ids = [role.id for role in ctx.author.roles]
+        print(role_ids,mod_roles)
+        passed = functions.any_object_same(role_ids,mod_roles)
+        
+        if not passed:
+            q = discord.Embed(title="no", color=discord.Colour.blue())
+            await ctx.respond(embed=q,ephemeral=True)
+            return
+        
 
         data = db.get_all_data()
+        print(data)
+        week_all_data = functions.generate_all_important_data(data)
 
-        weak_all_data = functions.generate_all_important_data(data)
-
-        diffent_ids = functions.get_diff_ids_from_importantant_data(weak_all_data)
+        diffent_ids = functions.get_diff_ids_from_importantant_data(week_all_data)
 
         important_data = {}
 
         for idd in diffent_ids:
-            idd_data = functions.extract_data_with_id_and_data(idd, weak_all_data)
+            idd_data = functions.extract_data_with_id_and_data(idd, week_all_data)
             # print(f"{idd_data=}")
             important_data.update({idd: idd_data})
 
@@ -53,7 +67,7 @@ class resultsCog(commands.Cog, name="results command"):
         user_points = []
 
         q = discord.Embed(
-            title=f"🔵 🔵 🔵 REZULTATI {functions.this_weak()} 🔵 🔵 🔵",
+            title=f"🔵 🔵 🔵 REZULTATI {functions.this_week()} 🔵 🔵 🔵",
             color=discord.Color.blue(),
         )
         await ctx.send(embed=q)
@@ -61,7 +75,7 @@ class resultsCog(commands.Cog, name="results command"):
         for event_id, event_data in final_data.items():
 
             event_id_to_display = DICTIONARY.get(event_id)
-            q = discord.Embed(title=event_id_to_display, color=discord.Color.blue())
+            q = discord.Embed(title=event_id_to_display, color=discord.Colour.blue())
 
             to_send = ""
 
@@ -118,36 +132,36 @@ class resultsCog(commands.Cog, name="results command"):
             
             functions.give_user_points(user_points)
             
-            all_data = db.get_all_data()
-            
-            all_clean_data = []
-            for user_data in all_data:
-                user_id = user_data["user_id"]
-                points = user_data["data"]["adata"]["points"]
-                
-                all_clean_data.append({"user_id": user_id, "points": points})
-                
-            q = discord.Embed(title="Celotna lestvica", color=discord.Color.yellow())
+        all_data = db.get_all_data()
         
-            to_send = ""
-            for i in range(len(all_clean_data)):
-                u = all_clean_data[i]
-
-                user_obj = await self.bot.fetch_user(u["user_id"])  # display name
-                d_name = user_obj.display_name
-
-                symbol = functions.place_symbol_for_all(i + 1)
-
-                one_line = f"{symbol} | {i+1}. {d_name} - **{u['points']}**"
-
-                to_send = to_send + one_line + "\n"
-
-            q.add_field(name="Lestvica", value=f"{to_send}")
-        
-            await ctx.send(embed=q)
+        all_clean_data = []
+        for user_data in all_data:
+            user_id = user_data["user_id"]
+            points = user_data["data"]["adata"]["points"]
             
-        else:
-            pass
+            all_clean_data.append({"user_id": user_id, "points": points})
+            
+        q = discord.Embed(title="Celotna lestvica", color=discord.Color.yellow())
+
+        all_clean_data = functions.sort_user_points(all_clean_data)
+    
+        to_send = ""
+        for i in range(len(all_clean_data)):
+            u = all_clean_data[i]
+
+            user_obj = await self.bot.fetch_user(u["user_id"])  # display name
+            d_name = user_obj.display_name
+
+            symbol = functions.place_symbol_for_all(i + 1)
+
+            one_line = f"{symbol} | {i+1}. {d_name} - **{u['points']}**"
+
+            to_send = to_send + one_line + "\n"
+
+        q.add_field(name="Lestvica", value=f"{to_send}")
+    
+        await ctx.send(embed=q)
+        
 
 
 # userObj = await self.bot.fetch_user(u_data["user_id"]).display_name
