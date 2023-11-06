@@ -130,6 +130,3 @@ dmypy.json
 
 #pycache
 __pycache__/*
-
-# temporaty 
-docker-compose.yml
