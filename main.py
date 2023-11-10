@@ -21,7 +21,13 @@ with open("settings.json", "r") as config:
     prefix = data["prefix"]
     owner_id = data["owner_id"]
 
-status = cycle(["Made by Mankifg","Some commands are used, because we can't trust the calendar."])
+status = cycle(
+    [
+        "Made by Mankifg",
+        "Some commands are used, because we can't trust the calendar.",
+        "Tudi slepa kura kocko zloži :)",
+    ]
+)
 
 
 @tasks.loop(seconds=10)
