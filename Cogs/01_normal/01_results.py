@@ -23,11 +23,10 @@ class resultsCog(commands.Cog, name="results command"):
     async def results(self, ctx,add_points:bool):
         
         role_ids = [role.id for role in ctx.author.roles]
-        print(role_ids,mod_roles)
         passed = functions.any_object_same(role_ids,mod_roles)
         
         if not passed:
-            q = discord.Embed(title="no", color=discord.Colour.blue())
+            q = discord.Embed(title="no", description="You don't have permissions to execute this command",color=discord.Colour.blue())
             await ctx.respond(embed=q,ephemeral=True)
             return
         

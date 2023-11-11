@@ -7,10 +7,10 @@ from datetime import datetime as dt
 import functions
 import db
 
+
 mod_roles = db.load_second_table_idd(2) # role
 mod_roles = mod_roles["data"]
 mod_roles = list(map(int,mod_roles))
-
 
 def real_week():
     now = dt.now()
@@ -29,12 +29,10 @@ class newweekCog(commands.Cog, name="newweek command"):
     async def newweek(self, ctx, week:str=None):
         
         role_ids = [role.id for role in ctx.author.roles]
-        
         passed = functions.any_object_same(role_ids,mod_roles)
         
-                
         if not passed:
-            q = discord.Embed(title="no",color=discord.Color.red())
+            q = discord.Embed(title="no", description="You don't have permissions to execute this command",color=discord.Colour.blue())
             await ctx.respond(embed=q,ephemeral=True)
             return
         
