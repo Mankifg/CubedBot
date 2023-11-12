@@ -12,14 +12,20 @@ DICTIONARY = {
     "666": "6x6x6",
     "777": "7x7x7",
     "333oh": "3x3x3 One-Handed",
-    "333bld": "3x3x3 Blindfolded",
-    "444bld": "4x4x4 Blind",
+    #"333bld": "3x3x3 Blindfolded",
+    "333bf": "3x3x3 Blindfolded",
+    "333mbf": "3x3x3 Mulit-Blindfolded",
+    "333fm":"3x3x3 Fewest moves",
+    #"444bld": "4x4x4 Blind",
+    "444bf": "4x4x4 Blindfolded",
     "pyram": "Pyraminx",
     "skewb": "Skewb",
     "clock": "Clock",
     "minx": "Megaminx",
     "sq1": "Square-1",
     "234": "2+3+4 Relay",
+    
+    "333ft":"3x3x3 Feat"
 }
 
 AO5 = [

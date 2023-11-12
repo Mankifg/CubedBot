@@ -1,4 +1,4 @@
-FROM python:3.10
+FROM python:3.9
 COPY . /app
 WORKDIR /app
 RUN apt update && apt install -y git 

@@ -1,0 +1,34 @@
+import discord
+from discord.ext import commands
+import requests, json
+
+WCA_COMP_INCLUDE = "worldcubeassociation.org/competitions"
+
+class automsgCog(commands.Cog, name="automsg command"):
+    def __init__(self, bot: commands.bot):
+        self.bot = bot
+
+    @commands.Cog.listener()
+    async def on_message(self, msg):
+        message = msg.content
+        message = message.lower()
+        
+        if WCA_COMP_INCLUDE in message:
+            #? wca comp link
+            
+            comp_name = message.split("/")[-1]
+            
+            await msg.add_reaction("🟢")
+            await msg.add_reaction("🟡")
+            await msg.add_reaction("🔴")
+            await msg.create_thread(name=comp_name, auto_archive_duration=1440)
+    
+    
+    
+    
+
+    
+
+
+'''def setup(bot: commands.Bot):
+    bot.add_cog(automsgCog(bot))'''

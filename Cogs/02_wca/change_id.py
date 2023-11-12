@@ -32,7 +32,7 @@ class changewcaidCog(commands.Cog, name="changewcaid command"):
             q.set_thumbnail(url=userObj.avatar.url)
             q.add_field(name="WCA id", value=user_data["wca_id"])
 
-            await ctx.response(embed=q)
+            await ctx.respond(embed=q)
             return
 
         if wca_id_exitsts:
@@ -57,7 +57,7 @@ class changewcaidCog(commands.Cog, name="changewcaid command"):
                 color=discord.Colour.red(),
             )
 
-        await ctx.response(embed=q)
+        await ctx.respond(embed=q)
 
 
 def setup(bot: commands.Bot):
