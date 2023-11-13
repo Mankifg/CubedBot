@@ -25,7 +25,7 @@ status = cycle(
     [
         "Made by Mankifg",
         "Some commands are used, because we can't trust the calendar.",
-        "Tudi slepa kura kocko zloži :)",
+        "Tudi slepa kura kocko zloži. :)",
     ]
 )
 

@@ -13,7 +13,8 @@ from hardstorage import *
 class weeksolvesCog(commands.Cog, name="weeksolves command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
-
+        
+    @commands.slash_command(guild_ids=[1008039328133414962])
     @discord.command(
         name="weeksolves",
         usage="",
