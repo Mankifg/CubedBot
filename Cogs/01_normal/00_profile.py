@@ -6,6 +6,7 @@ from datetime import datetime as dt
 
 import db
 
+print("profile loaded")
 
 class profileCog(commands.Cog, name="profile command"):
     def __init__(self, bot: commands.bot):
