@@ -53,16 +53,35 @@ bot = commands.Bot(
 
 setup_time = time.time()
 
-if __name__ == "__main__":
+'''if __name__ == "__main__":
     for path in Path("./Cogs").rglob("*.py"):
 
         p = str(path)
         p = p.replace("\\", ".")
         p = p.replace("/", ".")
         print(p)
-        bot.load_extension(f"{p[:-3]}")
+        bot.load_extension(f"{p[:-3]}")'''
+        
+import asyncio
+from pathlib import Path
+from discord.ext import commands
 
-boot_time = time.time()
+async def load_extensions():
+    for path in Path("./Cogs").rglob("*.py"):
+        p = str(path)
+        p = p.replace("\\", ".")
+        p = p.replace("/", ".")
+        print(p)
+        try:
+            bot.load_extension(f"{p[:-3]}")
+        except commands.ExtensionError as e:
+            print(f"Failed to load extension {p[:-3]}: {e}")
+
+if __name__ == "__main__":
+    bot.loop.run_until_complete(load_extensions())
+    bot.run(token)
+
+'''boot_time = time.time()
 
 
 @bot.event
@@ -74,4 +93,4 @@ async def on_ready():
     status_swap.start()
 
 
-bot.run(token)
+bot.run(token)'''
