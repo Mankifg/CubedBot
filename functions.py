@@ -393,3 +393,16 @@ def any_object_same(a1,a2):
             return True
         
     return False
+
+def true_week_num():
+    week_data = db.load_second_table_idd(1)
+    # {'id': 1, 'data': {'data': '5', 'old': [None, '1', 'b', '3', '4', '5']}}
+    week_data = week_data["data"]
+    c_week = week_data["data"]
+    all_weeks = week_data["old"]
+    
+    ind = int(all_weeks.index(c_week) % 3)
+    print(ind)
+    return ind
+    
+    

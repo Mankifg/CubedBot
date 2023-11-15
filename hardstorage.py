@@ -2,7 +2,11 @@ import json
 
 POPULAR_EVENT_IDS = ["333", "222", "444", "pyram", "skewb"]
 
-SECONDARY_IDS = ["555", "333bld", "444bld", "clock", "sq1"]
+WEAK_1 = ["555","333oh","clock","minx","666"]
+WEAK_2 = ["555","333oh","clock","333bf","777"]
+WEAK_3 = ["555","333oh","clock","sq1","234"]
+
+ALL_WEAKS = [WEAK_1, WEAK_2, WEAK_3]
 
 DICTIONARY = {
     "222": "2x2x2",

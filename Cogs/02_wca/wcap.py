@@ -67,7 +67,12 @@ class wcapCog(commands.Cog, name="wcap command"):
         )
         
         for i in range(len(user_data["rank"]["singles"])):
-            avgObj = user_data["rank"]["averages"][i]
+            print(len(user_data["rank"]["averages"]),len(user_data["rank"]["singles"]))
+            try:
+                avgObj = user_data["rank"]["averages"][i]
+            except IndexError:
+                pass
+            
             singleObj = user_data["rank"]["singles"][i]
             if avgObj["eventId"] == "333mbf":
                 upper = ""

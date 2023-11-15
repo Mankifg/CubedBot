@@ -7,9 +7,7 @@ from datetime import datetime as dt
 import db
 import functions
 
-
 from hardstorage import *
-
 
 REVERSE_DICT = reverse_dict = {v: k for k, v in DICTIONARY.items()}
 
@@ -28,7 +26,7 @@ class MyView(discord.ui.View):
                 MyModal(id="classic", user_id=interaction.user.id)
             )
 
-    @discord.ui.button(label="Wut", row=2, style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="Additioal", row=0, style=discord.ButtonStyle.secondary)
     async def button2(
         self, select: discord.ui.Select, interaction: discord.Interaction
     ):
@@ -59,12 +57,12 @@ class MyModal(discord.ui.Modal):
             # normal catgories
             using_ids = POPULAR_EVENT_IDS
         elif id == "special":
-            using_ids = SECONDARY_IDS
+            true_weak_num = functions.true_week_num()
+            using_ids = ALL_WEAKS[true_weak_num]
         else:
             return 1
 
         if week_times is not None:
-
             actual_week_data = week_times["data"]
         else:
             actual_week_data = []
