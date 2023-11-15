@@ -73,8 +73,8 @@ async def load_extensions():
         p = p.replace("/", ".")
         print(p)
         try:
-            bot.load_extension(f"{p[:-3]}")
-        except commands.ExtensionError as e:
+            await bot.load_extension(f"{p[:-3]}")
+        except Exception  as e:
             print(f"Failed to load extension {p[:-3]}: {e}")
 
 if __name__ == "__main__":

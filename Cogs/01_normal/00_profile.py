@@ -47,5 +47,5 @@ class profileCog(commands.Cog, name="profile command"):
         await ctx.respond(embed=q)
 
 
-def setup(bot: commands.Bot):
-    bot.add_cog(profileCog(bot))
+async def setup(bot: commands.Bot):
+    await bot.add_cog(profileCog(bot))
