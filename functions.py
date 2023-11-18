@@ -92,6 +92,9 @@ def unredify(num):
         except ValueError:
             return -1
 
+    if nn < 0:
+        return -1
+    
     num = int(nn * 100)
 
     return num

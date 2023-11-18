@@ -73,6 +73,5 @@ class weeksolvesCog(commands.Cog, name="weeksolves command"):
 
         await ctx.respond(embed=q)
 
-
 def setup(bot: commands.Bot):
     bot.add_cog(weeksolvesCog(bot))

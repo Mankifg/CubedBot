@@ -28,7 +28,7 @@ DICTIONARY = {
     "minx": "Megaminx",
     "sq1": "Square-1",
     "234": "2+3+4 Relay",
-    
+    #* separator --------------------------------
     "333ft":"3x3x3 Feat"
 }
 
@@ -47,7 +47,13 @@ AO5 = [
 
 MO3 = ["666", "777"]
 
-BO3 = ["333bld", "234", "444bld"]
+BO3 = ["333bf", "234", "444bf"]
+
+def category_attempts(cid): #catgory id
+    if cid in MO3+BO3:
+        return 3
+    else:
+        return 5
 
 POINTS = [
     100,
