@@ -48,15 +48,17 @@ def avg_of(solves, a_type):
 
             solves.pop(0)  # best
             solves.pop(-1)  # worst
-            print(round(sum(solves) / len(solves), 3))
-            return round(sum(solves) / len(solves), 3)
+            
+            print(round(sum(solves) / len(solves), 2))
+            
+            return round(sum(solves) / len(solves), 2)
         elif n_of_dnfs == 1:
             solves.sort()
 
             solves.remove(-1)
             solves.pop(0)  # best
 
-            return round(sum(solves) / len(solves), 3)
+            return round(sum(solves) / len(solves), 2)
         else:
             return -1
 
@@ -407,5 +409,4 @@ def true_week_num():
     ind = int(all_weeks.index(c_week) % 3)
     print(ind)
     return ind
-    
     

@@ -131,48 +131,79 @@ class scramblesCog(commands.Cog, name="scrambles command"):
             color=0xFFFFF,
         )
 
-        for category_id in using_ids:
-            cat_name = DICTIONARY.get(category_id)
-            repeat = hardstorage.category_attempts(category_id)
+        using_ids_in_a_arry = [POPULAR_EVENT_IDS,ALL_WEAKS[true_weak_num]]
+        
+        for al_ids in using_ids_in_a_arry:
+            q = discord.Embed(
+            title="Tedenski mešalni algoritmi",
+            description="Generates using **pyTwistyScrambler**.",
+            color=0xFFFFF,
+            )
+            
+            for category_id in al_ids:
+                print(category_id)
+                cat_name = DICTIONARY.get(category_id)
+                repeat = hardstorage.category_attempts(category_id)
 
-            scrambles = ""
-            data = []
-            for i in range(repeat):
+                scrambles = ""
+                data = []
+                for i in range(repeat):
+                    scramb = generate_scramble(category_id)
+                    scrambles = f"{scrambles}[{i+1}] {scramb}\n"
+                    data.append([f"[{i+1}]",scramb])
+
                 scramb = generate_scramble(category_id)
-                scrambles = f"{scrambles}[{i+1}] {scramb}\n"
-                data.append([f"[{i+1}]",scramb])
+                scrambles = f"{scrambles}[E] {scramb}\n"
+                data.append(["[E]",scramb])
 
-            scramb = generate_scramble(category_id)
-            scrambles = f"{scrambles}[E] {scramb}\n"
-            data.append(["[E]",scramb])
-
-    
-            if len(scrambles) < 1024:
-
-                q.add_field(
-                    name=f"{cat_name}", 
-                    value=f"```ini\n{scrambles}```", 
-                    inline=False
-                )
-            else:
-                for i in range(len(data)):
-                    prefix = data[i][0]
-                    actual_data = data[i][1]
+                if category_id == "777":
+                    embed7 = discord.Embed(title="7x7x7")
                     
-                    if i == 0:
-                        name_disp = cat_name
-                    else:
-                        name_disp = "_ _"
-                    
+                    for i in range(len(data)):
+                        prefix = data[i][0]
+                        actual_data = data[i][1]
+                        
+                        prefix = data[i][0]
+                        actual_data = data[i][1]
+                        
+                        if i == 0:
+                            name_disp = cat_name
+                        else:
+                            name_disp = "_ _"
+                        
+                        q.add_field(
+                            name=name_disp,
+                            value=f"```ini\n{prefix} {actual_data}```", 
+                            inline=False
+                        )
+                           
+        
+                if len(scrambles) < 1024:
+
                     q.add_field(
-                        name=name_disp,
-                        value=f"```ini\n{prefix} {actual_data}```", 
+                        name=f"{cat_name}", 
+                        value=f"```ini\n{scrambles}```", 
                         inline=False
                     )
-                    
+                else:
+                    for i in range(len(data)):
+                        prefix = data[i][0]
+                        actual_data = data[i][1]
+                        
+                        if i == 0:
+                            name_disp = cat_name
+                        else:
+                            name_disp = "_ _"
+                        
+                        q.add_field(
+                            name=name_disp,
+                            value=f"```ini\n{prefix} {actual_data}```", 
+                            inline=False
+                        )
+                        
 
-        await ctx.send(embed=q)
-
+            await ctx.send(embed=q)
+            
 
 def setup(bot: commands.Bot):
     bot.add_cog(scramblesCog(bot))

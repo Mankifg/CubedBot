@@ -32,7 +32,7 @@ class resultsCog(commands.Cog, name="results command"):
         
 
         data = db.get_all_data()
-        print(data)
+        #print(data)
         week_all_data = functions.generate_all_important_data(data)
 
         diffent_ids = functions.get_diff_ids_from_importantant_data(week_all_data)
@@ -70,7 +70,7 @@ class resultsCog(commands.Cog, name="results command"):
             color=discord.Color.blue(),
         )
         await ctx.send(embed=q)
-
+    
         for event_id, event_data in final_data.items():
 
             event_id_to_display = DICTIONARY.get(event_id)
