@@ -155,27 +155,6 @@ class scramblesCog(commands.Cog, name="scrambles command"):
                 scramb = generate_scramble(category_id)
                 scrambles = f"{scrambles}[E] {scramb}\n"
                 data.append(["[E]",scramb])
-
-                if category_id == "777":
-                    embed7 = discord.Embed(title="7x7x7")
-                    
-                    for i in range(len(data)):
-                        prefix = data[i][0]
-                        actual_data = data[i][1]
-                        
-                        prefix = data[i][0]
-                        actual_data = data[i][1]
-                        
-                        if i == 0:
-                            name_disp = cat_name
-                        else:
-                            name_disp = "_ _"
-                        
-                        q.add_field(
-                            name=name_disp,
-                            value=f"```ini\n{prefix} {actual_data}```", 
-                            inline=False
-                        )
                            
         
                 if len(scrambles) < 1024:
