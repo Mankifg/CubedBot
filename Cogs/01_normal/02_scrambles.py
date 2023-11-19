@@ -75,9 +75,9 @@ def generate_scramble(cid):
 
     elif cid == "234":
         ret = ""
-        ret = ret + scrambler222.get_WCA_scramble() + "\n"
-        ret = ret + scrambler333.get_WCA_scramble() + "\n"
-        ret = ret + scrambler444.get_WCA_scramble() + "\n"
+        ret = ret + "[2x2] " + scrambler222.get_WCA_scramble() + "\n"
+        ret = ret + "[3x3] " + scrambler333.get_WCA_scramble() + "\n"
+        ret = ret + "[4x4] " + scrambler444.get_WCA_scramble() + "\n"
 
         return ret
 
@@ -126,7 +126,7 @@ class scramblesCog(commands.Cog, name="scrambles command"):
         print(using_ids)
 
         q = discord.Embed(
-            title="Weeky scrambles",
+            title="Tedenski mešalni algoritmi",
             description="Generates using **pyTwistyScrambler**.",
             color=0xFFFFF,
         )
@@ -136,23 +136,40 @@ class scramblesCog(commands.Cog, name="scrambles command"):
             repeat = hardstorage.category_attempts(category_id)
 
             scrambles = ""
+            data = []
             for i in range(repeat):
                 scramb = generate_scramble(category_id)
                 scrambles = f"{scrambles}[{i+1}] {scramb}\n"
-                print(scramb)
+                data.append([f"[{i+1}]",scramb])
 
             scramb = generate_scramble(category_id)
             scrambles = f"{scrambles}[E] {scramb}\n"
+            data.append(["[E]",scramb])
 
+    
             if len(scrambles) < 1024:
 
                 q.add_field(
-                    name=f"{category_id}", 
+                    name=f"{cat_name}", 
                     value=f"```ini\n{scrambles}```", 
                     inline=False
                 )
             else:
-                pass
+                for i in range(len(data)):
+                    prefix = data[i][0]
+                    actual_data = data[i][1]
+                    
+                    if i == 0:
+                        name_disp = cat_name
+                    else:
+                        name_disp = "_ _"
+                    
+                    q.add_field(
+                        name=name_disp,
+                        value=f"```ini\n{prefix} {actual_data}```", 
+                        inline=False
+                    )
+                    
 
         await ctx.send(embed=q)
 

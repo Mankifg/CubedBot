@@ -140,7 +140,7 @@ class resultsCog(commands.Cog, name="results command"):
             
             all_clean_data.append({"user_id": user_id, "points": points})
             
-        q = discord.Embed(title="Celotna lestvica", color=discord.Color.yellow())
+        q = discord.Embed(title="Skupna lestvica", color=discord.Color.yellow())
 
         all_clean_data = functions.sort_user_points(all_clean_data)
     

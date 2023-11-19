@@ -17,7 +17,7 @@ class MyView(discord.ui.View):
         super().__init__()
         self.id = int(idd)
 
-    @discord.ui.button(label="Classic", row=0, style=discord.ButtonStyle.primary)
+    @discord.ui.button(label="Glavne discipline", row=0, style=discord.ButtonStyle.primary)
     async def button1(
         self, select: discord.ui.Select, interaction: discord.Interaction
     ):
@@ -26,7 +26,7 @@ class MyView(discord.ui.View):
                 MyModal(id="classic", user_id=interaction.user.id)
             )
 
-    @discord.ui.button(label="Additioal", row=0, style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="Stranske discipline", row=0, style=discord.ButtonStyle.secondary)
     async def button2(
         self, select: discord.ui.Select, interaction: discord.Interaction
     ):
@@ -38,7 +38,7 @@ class MyView(discord.ui.View):
 
 class MyModal(discord.ui.Modal):
     def __init__(self, id, user_id) -> None:
-        super().__init__(title="Tedenski solvi")
+        super().__init__(title="Vnesi svoje čase")
         self.id = id
         self.user_id = user_id
 
@@ -175,7 +175,7 @@ class MyModal(discord.ui.Modal):
 
         userObj = interaction.user
 
-        q = discord.Embed(title="Solves",color=0xFFFFF)
+        q = discord.Embed(title="Rezultati",color=0xFFFFF)
         q.set_author(name=userObj.display_name, icon_url=userObj.avatar)
 
         if week_time == []:
@@ -194,7 +194,7 @@ class MyModal(discord.ui.Modal):
                 # *print("=" * 10)
 
                 q.add_field(
-                    name=f"Event: **{DICTIONARY.get(elem['id'])}**, id: {elem['id']}",
+                    name=f"Disciplina: **{DICTIONARY.get(elem['id'])}**, id: {elem['id']}",
                     value=f"```{functions.beutify(elem['data'],elem['id'])}```",
                     inline=False,
                 )
