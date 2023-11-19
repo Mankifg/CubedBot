@@ -138,8 +138,11 @@ class scramblesCog(commands.Cog, name="scrambles command"):
             scrambles = ""
             for i in range(repeat):
                 scramb = generate_scramble(category_id)
-                scrambles = f"{scrambles}[E{i+1}] {scramb}\n"
+                scrambles = f"{scrambles}[{i+1}] {scramb}\n"
                 print(scramb)
+
+            scramb = generate_scramble(category_id)
+            scrambles = f"{scrambles}[E] {scramb}\n"
 
             if len(scrambles) < 1024:
 

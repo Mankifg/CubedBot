@@ -38,7 +38,7 @@ class MyView(discord.ui.View):
 
 class MyModal(discord.ui.Modal):
     def __init__(self, id, user_id) -> None:
-        super().__init__(title="a")
+        super().__init__(title="Tedenski solvi")
         self.id = id
         self.user_id = user_id
 
@@ -175,7 +175,7 @@ class MyModal(discord.ui.Modal):
 
         userObj = interaction.user
 
-        q = discord.Embed(title="Solves")
+        q = discord.Embed(title="Solves",color=0xFFFFF)
         q.set_author(name=userObj.display_name, icon_url=userObj.avatar)
 
         if week_time == []:
@@ -215,7 +215,7 @@ class solvesCog(commands.Cog, name="solves command"):
     async def solves(self, ctx):
         userObj = ctx.author
 
-        q = discord.Embed(title="Vnesite čase", description="Enter your solves")
+        q = discord.Embed(title="Vnesite čase", description="Enter your solves",color=0xFFFFF)
         q.set_footer(text="Če ne dela v prvo, bo šlo v drugo :) .")
         dview = MyView(userObj.id)
 

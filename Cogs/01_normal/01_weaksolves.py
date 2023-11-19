@@ -47,7 +47,7 @@ class weeksolvesCog(commands.Cog, name="weeksolves command"):
         else:
             week_time = user_data["data"]["solves"][x]["data"]
 
-        q = discord.Embed(title="Solves")
+        q = discord.Embed(title="Solves",color=0xFFFFF)
         q.set_author(name=userObj.display_name, icon_url=userObj.avatar)
 
         if week_time == []:

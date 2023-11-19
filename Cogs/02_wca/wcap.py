@@ -58,7 +58,8 @@ class wcapCog(commands.Cog, name="wcap command"):
         }"""
 
         q = discord.Embed(
-            title=f":flag_{country.lower()}: | {name}", description=f"ID: {idd}"
+            title=f":flag_{country.lower()}: | {name}", description=f"ID: {idd}",
+            color=0xFFFFF
         )
         q.add_field(
             name=f"Medals: {medals['gold']} 🥇,{medals['silver']} 🥈,{medals['bronze']}🥉",

@@ -35,7 +35,7 @@ class profileCog(commands.Cog, name="profile command"):
         if wca_id == "":
             wca_id = "**Not found**"
 
-        q = discord.Embed(title=f"{userObj.name}'s profile", description="")
+        q = discord.Embed(title=f"{userObj.name}'s profile", description="",color=0xFFFFF)
 
         q.set_thumbnail(url=userObj.avatar.url)
 
