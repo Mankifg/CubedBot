@@ -64,7 +64,7 @@ def avg_of(solves, a_type):
         solves.sort()
         solves.remove(-1)
         solves.remove(-1)
-        if solves.index(-1) > 0:
+        if -1 in solves:
             return -1
 
         return round(sum(solves) / len(solves), 3)
