@@ -2,7 +2,7 @@ import time
 from datetime import datetime as dt
 import json
 
-from hardstorage import *
+import hardstorage 
 
 import db
 
@@ -18,11 +18,11 @@ def avg_of(solves, a_type):
 
     a_type = a_type.lower()
 
-    if a_type in AO5:
+    if a_type in hardstorage.AO5:
         averge_mode = "ao5"
-    elif a_type in BO3:
+    elif a_type in hardstorage.BO3:
         averge_mode = "bo3"
-    elif a_type in MO3:
+    elif a_type in hardstorage.MO3:
         averge_mode = "mo3"
     else:
         raise SkillIssue(f"it appears that {a_type} isn't in any group")
@@ -138,11 +138,11 @@ def db_times_to_user_format(array_of_times):
 def parse_times(times, event_id):
     # if event id in mo3 or bo3 only 3
     
-    if event_id in AO5:
+    if event_id in hardstorage.AO5:
         averge_mode = "ao5"
-    elif event_id in BO3:
+    elif event_id in hardstorage.BO3:
         averge_mode = "bo3"
-    elif event_id in MO3:
+    elif event_id in hardstorage.MO3:
         averge_mode = "mo3"
     else:
         raise SkillIssue(f"it appears that {event_id} isn't in any group")
@@ -262,7 +262,7 @@ def beutify(arry, event_id):
     # ? [10, 20, 30, 40, 50] 5x time in centisec
 
     avg = avg_of(arry[:], event_id)
-    if event_id in BO3 or event_id in MO3:
+    if event_id in hardstorage.BO3 or event_id in hardstorage.MO3:
         arry = arry[0:3]
 
     for i in range(len(arry)):
@@ -409,4 +409,16 @@ def true_week_num():
     ind = int(all_weeks.index(c_week) % 3)
     print(ind)
     return ind
+
+
+def sort_weeky_data(data):
+    # [(id:x,data:y),(id:x,data:y)]
     
+    new = []
+    
+    for cat_id in hardstorage.CATEGORIES_SORTED:
+        found = find_in_array_with_id(data, cat_id, "id")
+        if found is not None:
+            new.append(found)
+            
+    return new

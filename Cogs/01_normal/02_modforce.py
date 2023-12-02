@@ -12,6 +12,10 @@ mod_roles = db.load_second_table_idd(2) # role
 mod_roles = mod_roles["data"]
 mod_roles = list(map(int,mod_roles))
 
+with open("settings.json", "r") as config:
+    data = json.load(config)
+    owner_id = data["owner_id"]
+
 class modforceCog(commands.Cog, name="modforce command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
@@ -67,6 +71,23 @@ class modforceCog(commands.Cog, name="modforce command"):
         q = discord.Embed(title="Mod hammer has hits it's target",description=f"Im looking :eyes: at you {userObj.name}.",color=discord.Colour.green())
         await ctx.send(embed=q)
         
+    @discord.command(
+        name="deleteall",
+        usage="",
+        description="SUDO: delete all",
+    )
+    @discord.option(name="aa",description="desc",type=discord.Member,required=True)
+    @commands.cooldown(1, 2, commands.BucketType.member)
+    async def deleteall(self, ctx):
+        if not ctx.author.id == owner_id:
+            q = discord.Embed(title="You shall not use this",description="with great power comes great responsibility")
+            await ctx.respond(embed=q)
+            return
+    
+        db.delete_database("test")
+        q = discord.Embed(title="Deleted all data",description="💀"*5)
+        await ctx.send(embed=q)
+
 
 def setup(bot: commands.Bot):
     bot.add_cog(modforceCog(bot))

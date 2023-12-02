@@ -15,6 +15,11 @@ supabase: Client = create_client(url, key)
 TABLE = "main"
 TABLE2 = "vars"
 
+# !!! YOU shall not run this
+def delete_database(tname):
+    data = supabase.table(tname).delete().execute()
+    
+     
 
 def get_all_data():
     response = supabase.table(TABLE).select("*").execute()
