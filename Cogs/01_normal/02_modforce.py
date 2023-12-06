@@ -84,6 +84,7 @@ class modforceCog(commands.Cog, name="modforce command"):
             await ctx.respond(embed=q)
             return
     
+    
         db.delete_database("test")
         q = discord.Embed(title="Deleted all data",description="💀"*5)
         await ctx.send(embed=q)
