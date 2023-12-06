@@ -102,7 +102,7 @@ class scramblesCog(commands.Cog, name="scrambles command"):
     @discord.command(
         name="scrambles",
         usage="",
-        description="MOD: Gives scrambles for weak",
+        description="MOD: Gives scrambles for week",
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def scrambles(self, ctx, week: str = None):
@@ -119,9 +119,9 @@ class scramblesCog(commands.Cog, name="scrambles command"):
             await ctx.respond(embed=q, ephemeral=True)
             return
 
-        true_weak_num = functions.true_week_num()
+        true_week_num = functions.true_week_num()
 
-        using_ids = POPULAR_EVENT_IDS + ALL_WEAKS[true_weak_num]
+        using_ids = POPULAR_EVENT_IDS + ALL_WEEKS[true_week_num]
 
         print(using_ids)
 
@@ -131,7 +131,7 @@ class scramblesCog(commands.Cog, name="scrambles command"):
             color=0xFFFFF,
         )
 
-        using_ids_in_a_arry = [POPULAR_EVENT_IDS,ALL_WEAKS[true_weak_num]]
+        using_ids_in_a_arry = [POPULAR_EVENT_IDS,ALL_WEEKS[true_week_num]]
         
         for al_ids in using_ids_in_a_arry:
             q = discord.Embed(

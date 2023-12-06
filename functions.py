@@ -176,6 +176,7 @@ def parse_times(times, event_id):
     for i in range(len(t)):
         t[i] = unredify(t[i])
 
+    print(t)
     return t
 
 

@@ -2,11 +2,11 @@ import json
 
 POPULAR_EVENT_IDS = ["333", "222", "444", "pyram", "skewb"]
 
-WEAK_1 = ["555","333oh","clock","minx","666"]
-WEAK_2 = ["555","333oh","clock","333bf","777"]
-WEAK_3 = ["555","333oh","clock","sq1","234"]
+WEEK_1 = ["555","333oh","clock","minx","666"]
+WEEK_2 = ["555","333oh","clock","333bf","777"]
+WEEK_3 = ["555","333oh","clock","sq1","234"]
 
-ALL_WEAKS = [WEAK_1, WEAK_2, WEAK_3]
+ALL_WEEKS = [WEEK_1, WEEK_2, WEEK_3]
 
 DICTIONARY = {
     "222": "2x2x2",
@@ -56,7 +56,7 @@ def category_attempts(cid): #catgory id
         return 5
 
 CATEGORIES_SORTED = ["222","333","444","555","666","777","333oh","333bld","333bf","333mbf","333fm","444bld","444bf","pyram","skewb","clock","minx","sq1","234"]
-CATEGORIES_SORTED = ["333,""222","444","555","333oh","pyram","skewb","clock","minx","sq1","666","777","333bf","444bf","234"]
+CATEGORIES_SORTED = ["333","222","444","555","333oh","pyram","skewb","clock","minx","sq1","666","777","333bf","444bf","234"]
 # 333, 222, 444, 555, 333oh, pyram, skewb, clock, minx, sq1, 666, 777, 333bld, 234
 
 POINTS = [

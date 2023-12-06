@@ -57,8 +57,8 @@ class MyModal(discord.ui.Modal):
             # normal catgories
             using_ids = POPULAR_EVENT_IDS
         elif id == "special":
-            true_weak_num = functions.true_week_num()
-            using_ids = ALL_WEAKS[true_weak_num]
+            true_week_num = functions.true_week_num()
+            using_ids = ALL_WEEKS[true_week_num]
         else:
             return 1
 
@@ -121,7 +121,8 @@ class MyModal(discord.ui.Modal):
         if week_time is None:
             week_time = {"data": None}
             week_time["data"] = None
-
+            
+        print(data)
         comb_data = functions.combine_two(week_time["data"], data)
 
         comb_data = functions.sort_weeky_data(comb_data)

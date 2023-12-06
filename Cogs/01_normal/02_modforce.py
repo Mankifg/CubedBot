@@ -58,7 +58,7 @@ class modforceCog(commands.Cog, name="modforce command"):
         if week_time == []:
             q = discord.Embed(
                 title="Mod hammer has missed its target",
-                description="aka. the user you're trying to remove results (weekly) has no weakly results.",
+                description="aka. the user you're trying to remove results (weekly) has no weekly results.",
                 color=discord.Colour.red(),
             )
             await ctx.respond(embed=q,ephemeral=True)
