@@ -41,7 +41,12 @@ class newweekCog(commands.Cog, name="newweek command"):
         all_week_data = cw["data"]["old"]
         current_week = cw["data"]["data"]
         
-    
+        if week == None:
+            q = discord.Embed(title="Looks like you didn't supliled week name",color=discord.Color.orange())
+            q.set_footer(text=f"Just to lyk calander week is {real_week()}, but it may or may not be in db.") # leet you know
+            
+            await ctx.send(embed=q)
+            return
         
         if week in all_week_data and not week is None:
             q = discord.Embed(title="This week name is already in database",description="And you don't want to change that")
@@ -63,12 +68,7 @@ class newweekCog(commands.Cog, name="newweek command"):
         
         
         
-        if week is None:
-            q = discord.Embed(title="Looks like you didn't supliled week name",color=discord.Color.orange())
-            q.set_footer(text=f"Just to lyk calander week is {real_week()}, but it may or may not be in db.") # leet you know
-            
-            await ctx.send(embed=q)
-            return
+       
 
             
 

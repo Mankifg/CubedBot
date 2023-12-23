@@ -55,7 +55,7 @@ def category_attempts(cid): #catgory id
     else:
         return 5
 
-CATEGORIES_SORTED = ["222","333","444","555","666","777","333oh","333bld","333bf","333mbf","333fm","444bld","444bf","pyram","skewb","clock","minx","sq1","234"]
+#CATEGORIES_SORTED = ["222","333","444","555","666","777","333oh","333bld","333bf","333mbf","333fm","444bld","444bf","pyram","skewb","clock","minx","sq1","234"]
 CATEGORIES_SORTED = ["333","222","444","555","333oh","pyram","skewb","clock","minx","sq1","666","777","333bf","444bf","234"]
 # 333, 222, 444, 555, 333oh, pyram, skewb, clock, minx, sq1, 666, 777, 333bld, 234
 

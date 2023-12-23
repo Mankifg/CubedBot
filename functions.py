@@ -421,5 +421,8 @@ def sort_weeky_data(data):
         found = find_in_array_with_id(data, cat_id, "id")
         if found is not None:
             new.append(found)
-            
+    
+    if len(data) != len(new):
+        print("Error",data)
+    
     return new
