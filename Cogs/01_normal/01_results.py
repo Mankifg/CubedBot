@@ -47,12 +47,26 @@ class resultsCog(commands.Cog, name="results command"):
         final_data = {}
 
         for event_id, value in important_data.items():
-            final_data_cat = []
+
             important_data[event_id] = functions.add_avg(important_data[event_id])
+
+            
             important_data[event_id] = sorted(
                 important_data[event_id], key=lambda x: x["data"][0]["avg"]
             )
+            
+            '''arry = important_data[event_id]
+            for a in range(len(arry)):
+                for b in range(len(arry)):
+                    if arry[a]["data"][0]["avg"] < arry[b]["data"][0]["avg"]:
+                        arry[a],arry[b] = arry[b],arry[a]
+                        
+            important_data[event_id] = arry
+            '''
+            
+            important_data[event_id] = functions.fix_same_avg(important_data[event_id])
 
+            #filter dnfs
             important_data[event_id] = [
                 item
                 for item in important_data[event_id]
@@ -70,7 +84,9 @@ class resultsCog(commands.Cog, name="results command"):
             color=discord.Color.blue(),
         )
         await ctx.send(embed=q)
-    
+
+        final_data = functions.sort_weeky_data(final_data)
+        
         for event_id, event_data in final_data.items():
 
             event_id_to_display = DICTIONARY.get(event_id)

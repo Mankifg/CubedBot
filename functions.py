@@ -329,9 +329,8 @@ def extract_data_with_id_and_data(id, data):
 def add_avg(data):
     for i in range(len(data)):
         data[i]["data"][0]["avg"] = avg_of(
-            data[i]["data"][0]["data"], data[i]["data"][0]["id"]
+            data[i]["data"][0]["data"][:], data[i]["data"][0]["id"]  #! [:]
         )
-
     return data
 
 
@@ -415,14 +414,39 @@ def true_week_num():
 def sort_weeky_data(data):
     # [(id:x,data:y),(id:x,data:y)]
     
-    new = []
+    new = {}
+    
+    categories = list(data)
     
     for cat_id in hardstorage.CATEGORIES_SORTED:
-        found = find_in_array_with_id(data, cat_id, "id")
-        if found is not None:
-            new.append(found)
+        if cat_id in categories:
+            new.update({cat_id:data[cat_id]})
     
     if len(data) != len(new):
         print("Error",data)
     
     return new
+
+def fix_same_avg(data):
+    #[{'user_id': /, 'data': [{'id': cat_id, 'data': [100, 200, 300, -1, -1], 'avg': float}]}]
+    
+    for i in range(len(data)-1):
+        p1 = data[i]["data"][0]
+        p2 = data[i+1]["data"][0]
+        
+        
+        if p1["avg"] == p2["avg"]:
+            
+            minP1 = p1["data"]
+            minP2 = p2["data"]
+            
+            minP1 = [x for x in minP1 if x != -1]
+            minP2 = [x for x in minP2 if x != -1]
+            
+            minP1 = min(minP1)
+            minP2 = min(minP2)
+            
+            if minP1 > minP2:
+                data[i],data[i+1] = data[i+1],data[i]
+                
+    return data
