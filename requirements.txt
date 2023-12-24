@@ -5,3 +5,4 @@ py-cord
 aiohttp # not directly required, pinned by Snyk to avoid a vulnerability
 requests
 pyTwistyScrambler
+beautifulsoup4

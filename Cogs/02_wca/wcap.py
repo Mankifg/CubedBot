@@ -67,7 +67,7 @@ class wcapCog(commands.Cog, name="wcap command"):
             inline=False,
         )
         
-        for i in range(len(user_data["rank"]["singles"])):
+        '''for i in range(len(user_data["rank"]["singles"])):
             print(len(user_data["rank"]["averages"]),len(user_data["rank"]["singles"]))
             try:
                 avgObj = user_data["rank"]["averages"][i]
@@ -85,7 +85,7 @@ class wcapCog(commands.Cog, name="wcap command"):
                 name=upper,
                 value=f"{DICTIONARY.get(avgObj['eventId'])}",
                 inline=False,
-            )
+            )'''
         
         
         await ctx.send(embed=q)

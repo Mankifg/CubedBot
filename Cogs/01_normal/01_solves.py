@@ -125,7 +125,7 @@ class MyModal(discord.ui.Modal):
         print(data)
         comb_data = functions.combine_two(week_time["data"], data)
 
-        comb_data = functions.sort_weeky_data(comb_data)
+        #comb_data = functions.sort_weeky_data(comb_data)
         print(comb_data)
 
         print(".")
