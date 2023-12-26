@@ -71,18 +71,37 @@ class wcapCog(commands.Cog, name="wcap command"):
         
         q.add_field(
             name=f"Medals: {medals['gold']} 🥇,{medals['silver']} 🥈,{medals['bronze']}🥉",
-            value=f"({num_of_championships+num_of_comps}) **{num_of_comps}** - Competitions, **{num_of_championships}** Championships",
+            value=f"**{num_of_comps}** - Competitions", 
+            #({num_of_championships} championships)",
             inline=False,
         )
         
-        u_data = []
+        u_data = {}
         
-        for i in range(len(user_data["rank"]["singles"])):
+        for elem in user_data["rank"]["singles"]:
+            # elem = {'eventId': event, 'best': int , 'rank': {'world': -1, 'continent': -1, 'country': -1}}
+            eventId = elem["eventId"]
+            best_time = elem["best"]
+            rank = elem["rank"]
+            print(eventId,best_time,rank)
+            if eventId == "333fm":
+                best_time = best_time
+            elif eventId == "333mbf":  
+                best_time = best_time # todo not done yet
+            else:            
+                best_time = functions.readify(best_time)
+            
+            u_data.update({eventId: {"best": best_time, "rank": rank, "avg": None,"avgRank":{}}})
+                
+
+        
+        
+        '''for i in range(len(user_data["rank"]["singles"])):
             #print(len(user_data["rank"]["singles"]),len(user_data["rank"]["singles"]))
             
             print(user_data["rank"]["singles"][i]["eventId"],user_data["rank"]["averages"][i]["eventId"])
             
-            '''try:
+            try:
                 avgObj = user_data["rank"]["averages"][i]
             except IndexError:
                 avgObj = {}
@@ -97,7 +116,10 @@ class wcapCog(commands.Cog, name="wcap command"):
             
             try:
                 table.append([DICTIONARY.get(singleObj['eventId']),functions.readify(singleObj['best']),functions.readify(avgObj['best'])])
+            
             '''
+            
+        
         new_t = ""
             
         q.add_field(name="Table",value=table)
