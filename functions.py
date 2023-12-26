@@ -37,6 +37,7 @@ def avg_of(solves, a_type):
         solves = list(filter(lambda a: a != -1, solves))
         if len(solves) == 0:
             return -1
+        
         return min(solves)
 
     elif averge_mode == "ao5":
@@ -48,19 +49,22 @@ def avg_of(solves, a_type):
 
             solves.pop(0)  # best
             solves.pop(-1)  # worst
+        
+            #return round(sum(solves) / len(solves), 2)
             
-            print(round(sum(solves) / len(solves), 2))
-            
-            return round(sum(solves) / len(solves), 2)
         elif n_of_dnfs == 1:
             solves.sort()
 
-            solves.remove(-1)
+            solves.remove(-1) # the DNF one
             solves.pop(0)  # best
 
-            return round(sum(solves) / len(solves), 2)
+            #return round(sum(solves) / len(solves), 2)
         else:
             return -1
+        
+        real_avg = sum(solves) / len(solves)
+        print(real_avg,round(real_avg))
+        return round(real_avg)
 
     elif averge_mode == "mo3":
         solves.sort()
@@ -69,7 +73,9 @@ def avg_of(solves, a_type):
         if -1 in solves:
             return -1
 
-        return round(sum(solves) / len(solves), 3)
+        real_avg = sum(solves) / len(solves)
+        print(real_avg,round(real_avg))
+        return round(real_avg)
 
     else:
         raise SkillIssue("Invalid type")
@@ -436,6 +442,7 @@ def fix_same_avg(data):
         
         
         if p1["avg"] == p2["avg"]:
+            print(p1["avg"], p2["avg"])
             
             minP1 = p1["data"]
             minP2 = p2["data"]

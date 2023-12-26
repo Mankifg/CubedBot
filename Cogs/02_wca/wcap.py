@@ -43,6 +43,9 @@ class wcapCog(commands.Cog, name="wcap command"):
 
         user_data = wca_functions.get_wca_data(wca_id)
 
+        picture_url = wca_functions.get_picture_url(wca_id)
+
+
         idd = user_data["id"]
         name = user_data["name"]
         country = user_data["country"]
@@ -61,32 +64,45 @@ class wcapCog(commands.Cog, name="wcap command"):
             title=f":flag_{country.lower()}: | {name}", description=f"ID: {idd}",
             color=0xFFFFF
         )
+        
+        q.set_image(url=picture_url)
+        
+        table = []
+        
         q.add_field(
             name=f"Medals: {medals['gold']} 🥇,{medals['silver']} 🥈,{medals['bronze']}🥉",
             value=f"({num_of_championships+num_of_comps}) **{num_of_comps}** - Competitions, **{num_of_championships}** Championships",
             inline=False,
         )
         
-        '''for i in range(len(user_data["rank"]["singles"])):
-            print(len(user_data["rank"]["averages"]),len(user_data["rank"]["singles"]))
-            try:
+        u_data = []
+        
+        for i in range(len(user_data["rank"]["singles"])):
+            #print(len(user_data["rank"]["singles"]),len(user_data["rank"]["singles"]))
+            
+            print(user_data["rank"]["singles"][i]["eventId"],user_data["rank"]["averages"][i]["eventId"])
+            
+            '''try:
                 avgObj = user_data["rank"]["averages"][i]
             except IndexError:
-                pass
+                avgObj = {}
+                avgObj["best"] = "N/A"
             
             singleObj = user_data["rank"]["singles"][i]
-            if avgObj["eventId"] == "333mbf":
-                upper = ""
-            else:    
-                upper = f"{functions.readify(avgObj['best'])} avg, {functions.readify(singleObj['best'])} single"
-
             
-            q.add_field(
-                name=upper,
-                value=f"{DICTIONARY.get(avgObj['eventId'])}",
-                inline=False,
-            )'''
-        
+            
+            if singleObj["eventId"] == "333mbf":
+                print(avgObj,singleObj)
+                continue
+            
+            try:
+                table.append([DICTIONARY.get(singleObj['eventId']),functions.readify(singleObj['best']),functions.readify(avgObj['best'])])
+            '''
+        new_t = ""
+            
+        q.add_field(name="Table",value=table)
+
+           
         
         await ctx.send(embed=q)
 

@@ -9,34 +9,40 @@ import db
 
 from hardstorage import *
 
-mod_roles = db.load_second_table_idd(2) # role
+mod_roles = db.load_second_table_idd(2)  # role
 mod_roles = mod_roles["data"]
-mod_roles = list(map(int,mod_roles))
+mod_roles = list(map(int, mod_roles))
 
 
 class resultsCog(commands.Cog, name="results command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
 
-    @discord.command(name="results", usage="", description="MOD: Skupni tedenski rezultati")
+    @discord.command(
+        name="results", usage="", description="MOD: Skupni tedenski rezultati"
+    )
     @commands.cooldown(1, 2, commands.BucketType.member)
-    async def results(self, ctx,add_points:bool):
-        
+    async def results(self, ctx, add_points: bool):
+
         role_ids = [role.id for role in ctx.author.roles]
-        passed = functions.any_object_same(role_ids,mod_roles)
-        
+        passed = functions.any_object_same(role_ids, mod_roles)
+
         if not passed:
-            q = discord.Embed(title="no", description="You don't have permissions to execute this command",color=discord.Colour.blue())
-            await ctx.respond(embed=q,ephemeral=True)
+            q = discord.Embed(
+                title="Missing permission",
+                description="You don't have permissions to execute this command",
+                color=discord.Colour.blue(),
+            )
+            await ctx.respond(embed=q, ephemeral=True)
             return
-        
 
         data = db.get_all_data()
-        #print(data)
+        
         week_all_data = functions.generate_all_important_data(data)
-
+        # current weak data
         diffent_ids = functions.get_diff_ids_from_importantant_data(week_all_data)
-
+        # every category
+        
         important_data = {}
 
         for idd in diffent_ids:
@@ -50,23 +56,14 @@ class resultsCog(commands.Cog, name="results command"):
 
             important_data[event_id] = functions.add_avg(important_data[event_id])
 
-            
             important_data[event_id] = sorted(
                 important_data[event_id], key=lambda x: x["data"][0]["avg"]
             )
-            
-            '''arry = important_data[event_id]
-            for a in range(len(arry)):
-                for b in range(len(arry)):
-                    if arry[a]["data"][0]["avg"] < arry[b]["data"][0]["avg"]:
-                        arry[a],arry[b] = arry[b],arry[a]
-                        
-            important_data[event_id] = arry
-            '''
-            
+
+            # if same avg sort by best time
             important_data[event_id] = functions.fix_same_avg(important_data[event_id])
 
-            #filter dnfs
+            # filter dnfs
             important_data[event_id] = [
                 item
                 for item in important_data[event_id]
@@ -86,7 +83,7 @@ class resultsCog(commands.Cog, name="results command"):
         await ctx.send(embed=q)
 
         final_data = functions.sort_weeky_data(final_data)
-        
+
         for event_id, event_data in final_data.items():
 
             event_id_to_display = DICTIONARY.get(event_id)
@@ -120,12 +117,12 @@ class resultsCog(commands.Cog, name="results command"):
 
         to_send = ""
         q = discord.Embed(title="Tedenska lestvica", color=discord.Color.blue())
-        
+
         if add_points:
             bottom_msg = "Adding to db"
         else:
             bottom_msg = "Not adding to db"
-        
+
         for i in range(len(user_points)):
             u = user_points[i]
 
@@ -144,22 +141,21 @@ class resultsCog(commands.Cog, name="results command"):
         await ctx.send(embed=q)
 
         if add_points:
-            
             functions.give_user_points(user_points)
-            
+
         all_data = db.get_all_data()
-        
+
         all_clean_data = []
         for user_data in all_data:
             user_id = user_data["user_id"]
             points = user_data["data"]["adata"]["points"]
-            
+
             all_clean_data.append({"user_id": user_id, "points": points})
-            
+
         q = discord.Embed(title="Skupna lestvica", color=discord.Color.yellow())
 
         all_clean_data = functions.sort_user_points(all_clean_data)
-    
+
         to_send = ""
         for i in range(len(all_clean_data)):
             u = all_clean_data[i]
@@ -174,9 +170,8 @@ class resultsCog(commands.Cog, name="results command"):
             to_send = to_send + one_line + "\n"
 
         q.add_field(name="Lestvica", value=f"{to_send}")
-    
+
         await ctx.send(embed=q)
-        
 
 
 # userObj = await self.bot.fetch_user(u_data["user_id"]).display_name

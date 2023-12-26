@@ -1,8 +1,10 @@
 import requests
+from bs4 import BeautifulSoup
 
 import json
 
 USER_ENDPOINT = "https://raw.githubusercontent.com/robiningelbrecht/wca-rest-api/master/api/persons/{}.json"
+WCA_USER_URL = "https://www.worldcubeassociation.org/persons/{}"
 
 def wca_id_exists(wca_id):
     resp = requests.get(url=USER_ENDPOINT.format(wca_id))
@@ -12,33 +14,27 @@ def get_wca_data(wca_id):
     resp = requests.get(url=USER_ENDPOINT.format(wca_id)).json()
     return resp
 
-import requests
-from bs4 import BeautifulSoup
-
-def scrape_website(url):
-    # Send a GET request to the URL
+def get_html_data(url):
     response = requests.get(url)
-
-    # Check if the request was successful (status code 200)
     if response.status_code == 200:
-        # Parse the HTML content using BeautifulSoup
         soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # Get the HTML code
         html_code = str(soup)
 
         return html_code
     else:
-        # Print an error message if the request was not successful
         print(f"Failed to retrieve the webpage. Status code: {response.status_code}")
         return None
 
-# URL of the website to scrape
-url = "https://www.worldcubeassociation.org/persons/2012ZAKE02"
+def get_picture_url(wca_id):
+    html_code = get_html_data(WCA_USER_URL.format(wca_id))
 
-# Call the function to scrape the website and get the HTML code
-html_code = scrape_website(url)
+    if not html_code:
+        return ""
+        
+    soup = BeautifulSoup(html_code, 'html.parser')
 
-# Print the HTML code if it was successfully retrieved
-if html_code:
-    print(html_code)
+    img_tag = soup.find('img', class_='avatar')
+    image_url = img_tag['src']
+
+    return image_url
+
