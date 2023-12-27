@@ -18,7 +18,7 @@ DICTIONARY = {
     "333oh": "3x3x3 One-Handed",
     #"333bld": "3x3x3 Blindfolded",
     "333bf": "3x3x3 Blindfolded",
-    "333mbf": "3x3x3 Mulit-Blindfolded",
+    "333mbf": "3x3x3 Multi-Blindfolded",
     "333fm":"3x3x3 Fewest moves",
     #"444bld": "4x4x4 Blind",
     "444bf": "4x4x4 Blindfolded",
