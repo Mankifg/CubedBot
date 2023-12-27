@@ -9,6 +9,9 @@ import functions
 
 USER_ENDPOINT = "https://raw.githubusercontent.com/robiningelbrecht/wca-rest-api/master/api/persons/{}.json"
 
+def max_len_in_collum(data):
+    return [max(len(str(element)) for element in column) for column in zip(*data)]
+
 
 class wcapCog(commands.Cog, name="wcap command"):
     def __init__(self, bot: commands.bot):
@@ -61,17 +64,15 @@ class wcapCog(commands.Cog, name="wcap command"):
         }"""
 
         q = discord.Embed(
-            title=f":flag_{country.lower()}: | {name}", description=f"ID: {idd}",
+            title=f":flag_{country.lower()}: {name}", description=f"ID: {idd}",
             color=0xFFFFF
         )
         
         q.set_image(url=picture_url)
         
-        table = []
-        
         q.add_field(
-            name=f"Medals: {medals['gold']} 🥇,{medals['silver']} 🥈,{medals['bronze']}🥉",
-            value=f"**{num_of_comps}** - Competitions", 
+            name=f"Medals: {medals['gold']} 🥇{medals['silver']} 🥈{medals['bronze']}🥉",
+            value=f"**{num_of_comps}** Competitions", 
             #({num_of_championships} championships)",
             inline=False,
         )
@@ -83,48 +84,77 @@ class wcapCog(commands.Cog, name="wcap command"):
             eventId = elem["eventId"]
             best_time = elem["best"]
             rank = elem["rank"]
-            print(eventId,best_time,rank)
             if eventId == "333fm":
                 best_time = best_time
             elif eventId == "333mbf":  
-                best_time = best_time # todo not done yet
+                best_time = str(best_time)
+                solved = 99 - int(best_time[0:2]) + int(best_time[7:9])
+                all_cubes = 99 - int(best_time[0:2]) + 2 * int(best_time[7:9])
+                c_time = int(best_time[2:7])
+                
+                c_time = functions.readify(c_time*100)
+                
+                best_time = f"{solved} / {all_cubes} {c_time}"
+                
             else:            
                 best_time = functions.readify(best_time)
             
-            u_data.update({eventId: {"best": best_time, "rank": rank, "avg": None,"avgRank":{}}})
+            u_data.update({eventId: {"single": best_time, "singleRank": rank}})
+            
+
+        for elem in user_data["rank"]["averages"]:
+            # elem = {'eventId': event, 'best': int , 'rank': {'world': -1, 'continent': -1, 'country': -1}}
+            eventId = elem["eventId"]
+            best_time = elem["best"]
+            rank = elem["rank"]
+            if eventId == "333fm":
+                best_time = best_time
+            elif eventId == "333mbf":  
+                best_time = str(best_time)
+                solved = 99 - int(best_time[0:2]) + int(best_time[7:9])
+                all_cubes = 99 - int(best_time[0:2]) + 2 * int(best_time[7:9])
+                c_time = int(best_time[2:7])
                 
-
+                c_time = functions.readify(c_time*100)
+                
+                best_time = f"{solved} / {all_cubes} {c_time}"
+                
+            else:            
+                best_time = functions.readify(best_time)
+            
+            
+            u_data.update({eventId: {"single":u_data[eventId]["single"],"singleRank":u_data[eventId]["singleRank"],"avg": best_time, "avgRank": rank}})
+            
+            
+        #print(u_data)
+            
+            
+        table = []
+        table.append(["Event", "Single", "Average"])
+        
+        for eventId in u_data:
+            category_data = u_data[eventId]
+            single = category_data["single"]
+            event_id_displ = DICTIONARY.get(eventId,"/")
+            print(category_data)
+            avg = category_data.get("avg","/")
+            
+            single_line_table = [event_id_displ, single, avg]
+            table.append(single_line_table)
+            
+        #print(table)
+        
+        max_len = max_len_in_collum(table)
+        
+        new_table = ""
         
         
-        '''for i in range(len(user_data["rank"]["singles"])):
-            #print(len(user_data["rank"]["singles"]),len(user_data["rank"]["singles"]))
+        for line in table:
+            line = list(map(str,line))
             
-            print(user_data["rank"]["singles"][i]["eventId"],user_data["rank"]["averages"][i]["eventId"])
+            new_table = new_table + f"{line[0].center(max_len[0])}|{line[1].center(max_len[1])}|{line[2].center(max_len[2])}" + "\n"
             
-            try:
-                avgObj = user_data["rank"]["averages"][i]
-            except IndexError:
-                avgObj = {}
-                avgObj["best"] = "N/A"
-            
-            singleObj = user_data["rank"]["singles"][i]
-            
-            
-            if singleObj["eventId"] == "333mbf":
-                print(avgObj,singleObj)
-                continue
-            
-            try:
-                table.append([DICTIONARY.get(singleObj['eventId']),functions.readify(singleObj['best']),functions.readify(avgObj['best'])])
-            
-            '''
-            
-        
-        new_t = ""
-            
-        q.add_field(name="Table",value=table)
-
-           
+        q.add_field(name="PBs", value=f"```\n{new_table}```", inline=False)
         
         await ctx.send(embed=q)
 
