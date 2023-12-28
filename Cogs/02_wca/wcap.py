@@ -69,6 +69,7 @@ class wcapCog(commands.Cog, name="wcap command"):
         )
         
         q.set_image(url=picture_url)
+        #? q.set_author(name="2n2n", icon_url=picture_url) TOO small
         
         q.add_field(
             name=f"Medals: {medals['gold']} 🥇{medals['silver']} 🥈{medals['bronze']}🥉",
@@ -94,7 +95,7 @@ class wcapCog(commands.Cog, name="wcap command"):
                 
                 c_time = functions.readify(c_time*100)
                 
-                best_time = f"{solved} / {all_cubes} {c_time}"
+                best_time = f"{solved}/{all_cubes} {c_time[:-3]}"
                 
             else:            
                 best_time = functions.readify(best_time)
@@ -108,7 +109,7 @@ class wcapCog(commands.Cog, name="wcap command"):
             best_time = elem["best"]
             rank = elem["rank"]
             if eventId == "333fm":
-                best_time = best_time
+                best_time = int(best_time) / 100
             elif eventId == "333mbf":  
                 best_time = str(best_time)
                 solved = 99 - int(best_time[0:2]) + int(best_time[7:9])
@@ -127,15 +128,16 @@ class wcapCog(commands.Cog, name="wcap command"):
             
             
         #print(u_data)
-            
+        u_data = functions.sort_weeky_data(u_data)
             
         table = []
         table.append(["Event", "Single", "Average"])
         
+        
         for eventId in u_data:
             category_data = u_data[eventId]
             single = category_data["single"]
-            event_id_displ = DICTIONARY.get(eventId,"/")
+            event_id_displ = SHORT_DICTIONARY.get(eventId,"/")
             print(category_data)
             avg = category_data.get("avg","/")
             
@@ -146,13 +148,15 @@ class wcapCog(commands.Cog, name="wcap command"):
         
         max_len = max_len_in_collum(table)
         
+        table.insert(1, ["-"*max_len[0],"-"*max_len[1],"-"*max_len[2]])
+
         new_table = ""
         
         
         for line in table:
             line = list(map(str,line))
             
-            new_table = new_table + f"{line[0].center(max_len[0])}|{line[1].center(max_len[1])}|{line[2].center(max_len[2])}" + "\n"
+            new_table = new_table + f"| {line[0].center(max_len[0])}| {line[1].center(max_len[1])} | {line[2].center(max_len[2])} |" + "\n"
             
         q.add_field(name="PBs", value=f"```\n{new_table}```", inline=False)
         

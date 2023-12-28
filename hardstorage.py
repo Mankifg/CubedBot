@@ -32,6 +32,30 @@ DICTIONARY = {
     "333ft":"3x3x3 Feat"
 }
 
+SHORT_DICTIONARY = {
+    "222": "2x2",
+    "333": "3x3",
+    "444": "4x4",
+    "555": "5x5",
+    "666": "6x6",
+    "777": "7x7",
+    "333oh": "3x3x3 One Hand",
+    #"333bld": "3x3x3 Blindfolded",
+    "333bf": "3x3 BlindF",
+    "333mbf": "3x3 Multi-BlindF",
+    "333fm":"3x3x3 Fewest M",
+    #"444bld": "4x4x4 Blind",
+    "444bf": "4x4 BlindF",
+    "pyram": "Pyraminx",
+    "skewb": "Skewb",
+    "clock": "Clock",
+    "minx": "Megaminx",
+    "sq1": "Square-1",
+    "234": "2+3+4 Relay",
+    #* separator --------------------------------
+    "333ft":"3x3 Feat"
+}
+
 AO5 = [
     "222",
     "333",
