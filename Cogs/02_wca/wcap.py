@@ -156,7 +156,7 @@ class wcapCog(commands.Cog, name="wcap command"):
         for line in table:
             line = list(map(str,line))
             
-            new_table = new_table + f"| {line[0].center(max_len[0])}| {line[1].center(max_len[1])} | {line[2].center(max_len[2])} |" + "\n"
+            new_table = new_table + f"| {line[0].center(max_len[0])}| {line[1].center(max_len[1])} | {line[2].center(max_len[2])} |\n"
             
         q.add_field(name="PBs", value=f"```\n{new_table}```", inline=False)
         
