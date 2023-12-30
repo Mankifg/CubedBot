@@ -53,9 +53,7 @@ class wcapCog(commands.Cog, name="wcap command"):
         name = user_data["name"]
         country = user_data["country"]
         num_of_comps = user_data["numberOfCompetitions"]
-        num_of_championships = user_data["numberOfChampionships"]
-
-        medals = user_data["medals"]
+        #medals = user_data["medals"]
 
         """{
             gold": 0,
@@ -71,12 +69,14 @@ class wcapCog(commands.Cog, name="wcap command"):
         q.set_image(url=picture_url)
         #? q.set_author(name="2n2n", icon_url=picture_url) TOO small
         
-        q.add_field(
+        '''q.add_field(
             name=f"Medals: {medals['gold']} 🥇{medals['silver']} 🥈{medals['bronze']}🥉",
             value=f"**{num_of_comps}** Competitions", 
             #({num_of_championships} championships)",
             inline=False,
-        )
+        )'''
+        
+        q.add_field(name=f"**{num_of_comps}** Competitions",value="_ _")
         
         u_data = {}
         
@@ -138,7 +138,6 @@ class wcapCog(commands.Cog, name="wcap command"):
             category_data = u_data[eventId]
             single = category_data["single"]
             event_id_displ = SHORT_DICTIONARY.get(eventId,"/")
-            print(category_data)
             avg = category_data.get("avg","/")
             
             single_line_table = [event_id_displ, single, avg]
@@ -151,7 +150,6 @@ class wcapCog(commands.Cog, name="wcap command"):
         table.insert(1, ["-"*max_len[0],"-"*max_len[1],"-"*max_len[2]])
 
         new_table = ""
-        
         
         for line in table:
             line = list(map(str,line))
