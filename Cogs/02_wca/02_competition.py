@@ -10,6 +10,7 @@ import functions
 from datetime import datetime as dt
 
 
+
 class compCog(commands.Cog, name="comp command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
@@ -41,12 +42,11 @@ class compCog(commands.Cog, name="comp command"):
         end_date = data["date"]["till"]
         
         if start_date == end_date:
-            date = dt.strptime(start_date, "%Y-%m-%d").strftime("%d. %B %Y")
+            date = f'<t:{dt.strptime(start_date, "%Y-%m-%d").timestamp()}:f>'
         else:
-            start_date = dt.strptime(start_date, "%Y-%m-%d").strftime("%d. %B %Y")
-            end_date = dt.strptime(end_date, "%Y-%m-%d").strftime("%d. %B %Y")
-            
-            date = f"{start_date} - {end_date} ({data['date']['numberOfDays']})"
+            start_date = dt.strptime(start_date, "%Y-%m-%d").timestamp()
+            end_date = dt.strptime(end_date, "%Y-%m-%d").timestamp()
+            date = f"<t:{int(start_date)}:f> - <t:{int(end_date)}:f> ({data['date']['numberOfDays']})"
 
         q.add_field(name="Datum", value=date, inline=False)
         
@@ -55,28 +55,21 @@ class compCog(commands.Cog, name="comp command"):
         for i in range(len(events)):
             events[i] = hardstorage.SHORT_DICTIONARY.get(events[i])
         
-        q.add_field(name="Kategorije", value=", ".join(events), inline=False)
+        q.add_field(name="Discipline", value=", ".join(events), inline=False)
 
         organizer = data["organisers"][0]
         q.add_field(
-            name="Organizer",
-            value=f"{organizer['name']} ({organizer['email']})",
-            inline=False,
+            name="Organizator", value=f"{organizer['name']}", inline=True,
         )
 
         delegates = "\n".join(
-            [
-                f"{delegate['name']} ({delegate['email']})"
-                for delegate in data["wcaDelegates"]
-            ]
+            [ f"{delegate['name']}" for delegate in data["wcaDelegates"]]
         )
-        q.add_field(name="WCA Delegates", value=delegates, inline=False)
+        
+        q.add_field(name="WCA Delegati", value=delegates, inline=True)
 
-        venue = data["venue"]
         q.add_field(
-            name="Venue",
-            value=f"{venue['name']}\n{venue['address']}\n{venue['details']}",
-            inline=False,
+            name="Prizorišče", value=f"{data['venue']['name']}\n{data['venue']['address']}\n{data['venue']['details']}", inline=False,
         )
 
         # Add additional information
@@ -84,12 +77,8 @@ class compCog(commands.Cog, name="comp command"):
 
         if data["externalWebsite"]:
             q.add_field(
-                name="External Website", value=data["externalWebsite"], inline=False
+                name="Spletna stran", value=data["externalWebsite"], inline=False
             )
-
-        '''q.set_thumbnail(
-            url="https://www.worldcubeassociation.org/rails/active_storage/blobs/redirect/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBdDlaIiwiZXhwIjpudWxsLCJwdXIiOiJibG9iX2lkIn19--c9aec1f797e8f637a46252ccaa3631e415914c78/newwcomer-month.jpg"
-        )'''
 
         await ctx.send(embed=q)
 
