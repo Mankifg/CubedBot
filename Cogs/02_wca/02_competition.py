@@ -67,7 +67,15 @@ class compCog(commands.Cog, name="comp command"):
         if data["externalWebsite"]:
             q.add_field(name="Spletna stran", value=data["externalWebsite"], inline=False)
 
-        await ctx.send(embed=q)
+        send_msg = await ctx.send(embed=q)
+        
+        #? forced into this
+        channel = db.load_second_table_idd(4)["data"]["send_channel"]
+        channel = int(channel)
+        if ctx.channel.id == channel:
+            await send_msg.add_reaction("🟢")
+            await send_msg.add_reaction("🟡")
+            await send_msg.add_reaction("🔴")
 
 
 def setup(bot: commands.Bot):
