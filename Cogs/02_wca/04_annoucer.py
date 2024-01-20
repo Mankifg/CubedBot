@@ -43,9 +43,8 @@ class annouceCog(commands.Cog, name="annouce command"):
         
         already_printed_comps = db.load_second_table_idd(3)
         
-        
-        
         channel = db.load_second_table_idd(4)["data"]["send_channel"]
+        channel = int(channel)
         ch = self.bot.get_channel(channel)
         
         final_comps = []
@@ -68,7 +67,7 @@ class annouceCog(commands.Cog, name="annouce command"):
             else:
                 q = discord.Embed(
                     title=f":flag_{data['country'].lower()}: | {data['name']}",
-                    description=f"{data['city']}, {wca_functions.COUNTRIES_DICT.get(data['country'])} | `[{data['id']}](https://www.worldcubeassociation.org/competitions/{data['id']})`",
+                    description=f"{data['city']}, {wca_functions.COUNTRIES_DICT.get(data['country'])} | [{data['id']}](https://www.worldcubeassociation.org/competitions/{data['id']})",
                     color=discord.Colour.blue(),
                 )
                 start_date = data["date"]["from"]
@@ -108,8 +107,8 @@ class annouceCog(commands.Cog, name="annouce command"):
             send_msg = await ch.send(embed=q)
             print("send",comp_id)
             
-            await send_msg.add_reaction("🟡")
             await send_msg.add_reaction("🟢")
+            await send_msg.add_reaction("🟡")
             await send_msg.add_reaction("🔴")
             
             send.append(comp_id)
