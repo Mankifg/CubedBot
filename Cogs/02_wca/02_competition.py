@@ -9,8 +9,6 @@ import functions
 
 from datetime import datetime as dt
 
-
-
 class compCog(commands.Cog, name="comp command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
@@ -32,24 +30,22 @@ class compCog(commands.Cog, name="comp command"):
 
         q = discord.Embed(
             title=f":flag_{data['country'].lower()}: | {data['name']}",
-            description=f"{data['city']}, {wca_functions.COUNTRIES_DICT.get(data['country'])}",
+            description=f"{data['city']}, {wca_functions.COUNTRIES_DICT.get(data['country'])} | `[{data['id']}](https://www.worldcubeassociation.org/competitions/{data['id']})`",
             color=discord.Colour.blue(),
         )
-
-        date = ""
-        
         start_date = data["date"]["from"]
         end_date = data["date"]["till"]
         
         if start_date == end_date:
-            date = f'<t:{dt.strptime(start_date, "%Y-%m-%d").timestamp()}:f>'
+            date = f'<t:{int(dt.strptime(start_date, "%Y-%m-%d").timestamp())}:D>'
         else:
             start_date = dt.strptime(start_date, "%Y-%m-%d").timestamp()
             end_date = dt.strptime(end_date, "%Y-%m-%d").timestamp()
-            date = f"<t:{int(start_date)}:f> - <t:{int(end_date)}:f> ({data['date']['numberOfDays']})"
-
+            date = f"<t:{int(start_date)}:D> - <t:{int(end_date)}:D> ({data['date']['numberOfDays']})"
+            
         q.add_field(name="Datum", value=date, inline=False)
         
+        #*********
         events = data["events"]
         
         for i in range(len(events)):
@@ -57,28 +53,19 @@ class compCog(commands.Cog, name="comp command"):
         
         q.add_field(name="Discipline", value=", ".join(events), inline=False)
 
-        organizer = data["organisers"][0]
-        q.add_field(
-            name="Organizator", value=f"{organizer['name']}", inline=True,
-        )
+        #?*********
+        organizator = "\n".join([f"{org['name']}" for org in data["organisers"]])
+        q.add_field(name="Organizator(ji)", value=organizator, inline=True,)
 
-        delegates = "\n".join(
-            [ f"{delegate['name']}" for delegate in data["wcaDelegates"]]
-        )
-        
+        #*********
+        delegates = "\n".join([ f"{delegate['name']}" for delegate in data["wcaDelegates"]])
         q.add_field(name="WCA Delegati", value=delegates, inline=True)
-
-        q.add_field(
-            name="Prizorišče", value=f"{data['venue']['name']}\n{data['venue']['address']}\n{data['venue']['details']}", inline=False,
-        )
-
-        # Add additional information
-        # q.add_field(name='Additional Information', value=data['information'], inline=False)
+        
+        #*********
+        q.add_field(name="Prizorišče", value=f"{data['venue']['name']}\n{data['venue']['address']}\n{data['venue']['details']}", inline=False,)
 
         if data["externalWebsite"]:
-            q.add_field(
-                name="Spletna stran", value=data["externalWebsite"], inline=False
-            )
+            q.add_field(name="Spletna stran", value=data["externalWebsite"], inline=False)
 
         await ctx.send(embed=q)
 
