@@ -30,7 +30,7 @@ class compCog(commands.Cog, name="comp command"):
 
         q = discord.Embed(
             title=f":flag_{data['country'].lower()}: | {data['name']}",
-            description=f"{data['city']}, {wca_functions.COUNTRIES_DICT.get(data['country'])} | `[{data['id']}](https://www.worldcubeassociation.org/competitions/{data['id']})`",
+            description=f"{data['city']}, {wca_functions.COUNTRIES_DICT.get(data['country'])} | [{data['id']}](https://www.worldcubeassociation.org/competitions/{data['id']})",
             color=discord.Colour.blue(),
         )
         start_date = data["date"]["from"]
