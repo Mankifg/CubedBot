@@ -105,12 +105,12 @@ class annouceCog(commands.Cog, name="annouce command"):
                 if data["externalWebsite"]:
                     q.add_field(name="Spletna stran", value=data["externalWebsite"], inline=False)
 
-            #await ch.send(embed=q)
+            await ch.send(embed=q)
             print("send",comp_id)
             
             send.append(comp_id)
             
-            #await asyncio.sleep(5)
+            await asyncio.sleep(5)
             
         
         
@@ -120,9 +120,6 @@ class annouceCog(commands.Cog, name="annouce command"):
                 
         
         db.save_second_table_idd(already_printed_comps)
-            
-        #ch = self.bot.get_channel(1170474447044612236)
-        #await asyncio.sleep(1)
     
     @check.before_loop
     async def before_send_message(self):

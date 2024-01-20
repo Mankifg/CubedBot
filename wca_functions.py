@@ -103,7 +103,6 @@ def filter_by_distance(comps):
     filtered_comp = []
     for competitionn in comps:
         
-       
         coords = competitionn.get("venue")
         latlot = coords.get("coordinates")
         lat,lon = latlot["latitude"],latlot["longitude"]
