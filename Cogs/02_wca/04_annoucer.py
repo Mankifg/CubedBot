@@ -105,8 +105,12 @@ class annouceCog(commands.Cog, name="annouce command"):
                 if data["externalWebsite"]:
                     q.add_field(name="Spletna stran", value=data["externalWebsite"], inline=False)
 
-            await ch.send(embed=q)
+            send_msg = await ch.send(embed=q)
             print("send",comp_id)
+            
+            await send_msg.add_reaction("🟡")
+            await send_msg.add_reaction("🟢")
+            await send_msg.add_reaction("🔴")
             
             send.append(comp_id)
             
