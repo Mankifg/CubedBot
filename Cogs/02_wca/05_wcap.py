@@ -17,7 +17,7 @@ class wcapCog(commands.Cog, name="wcap command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
 
-    @discord.command(name="wcap", usage="", description="")
+    @discord.command(name="wcap", usage="(member:mention) OR (wca id:str)", description="Displays wca profile of user/wca id")
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def wcap(self, ctx, member: discord.Member = None, user_wca_id: str = None):
 

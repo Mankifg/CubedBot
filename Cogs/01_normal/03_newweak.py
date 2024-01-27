@@ -22,8 +22,8 @@ class newweekCog(commands.Cog, name="newweek command"):
 
     @discord.command(
         name="newweek",
-        usage="",
-        description="MOD: Changes next week/week name, because we can't trust calendar.",
+        usage="(week:str)",
+        description="MOD: Changes to next week, because we can't trust calendar.",
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def newweek(self, ctx, week:str=None):

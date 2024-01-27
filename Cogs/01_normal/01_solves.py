@@ -211,7 +211,7 @@ class solvesCog(commands.Cog, name="solves command"):
     @discord.command(
         name="solves",
         usage="",
-        description="Able to submit solves to database",
+        description="Submit solves to database",
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def solves(self, ctx):

@@ -19,7 +19,7 @@ class resultsCog(commands.Cog, name="results command"):
         self.bot = bot
 
     @discord.command(
-        name="results", usage="", description="MOD: Skupni tedenski rezultati"
+        name="results", usage="[add_points:bool]", description="MOD: Skupni tedenski rezultati"
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def results(self, ctx, add_points: bool):

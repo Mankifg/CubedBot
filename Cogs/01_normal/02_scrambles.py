@@ -105,7 +105,7 @@ class scramblesCog(commands.Cog, name="scrambles command"):
         description="MOD: Gives scrambles for week",
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
-    async def scrambles(self, ctx, week: str = None):
+    async def scrambles(self, ctx):
 
         role_ids = [role.id for role in ctx.author.roles]
         passed = functions.any_object_same(role_ids, mod_roles)

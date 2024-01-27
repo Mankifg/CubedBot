@@ -11,7 +11,7 @@ class changewcaidCog(commands.Cog, name="changewcaid command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
 
-    @discord.command(name="changewcaid", usage="", description="")
+    @discord.command(name="changewcaid", usage="(wca id:str)", description="Changes your wca id assciated with your discord username")
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def changewcaid(self, ctx, user_input_wca_id: str = None):
         userObj = ctx.author

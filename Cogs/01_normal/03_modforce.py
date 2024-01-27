@@ -22,7 +22,7 @@ class modforceCog(commands.Cog, name="modforce command"):
 
     @discord.command(
         name="modforce",
-        usage="",
+        usage="(member:mention)",
         description="MOD: Delete weekly solves for specific user.",
     )
     @discord.option(name="aa",description="desc",type=discord.Member,required=True)

@@ -8,7 +8,7 @@ class linksCog(commands.Cog, name="links command"):
         self.bot = bot
 
     @discord.command(
-        name="links", usage="", description="Gives a links for essentially everything."
+        name="links", usage="", description="Some links for bot"
     )
     async def links(self, ctx):
         q = discord.Embed(title="Links", color=discord.Color.blue())

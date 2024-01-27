@@ -14,8 +14,8 @@ class profileCog(commands.Cog, name="profile command"):
 
     @discord.command(
         name="profile",
-        usage="",
-        description="Gives a profile for essentially everything.",
+        usage="[member:mention]",
+        description="Discordish profile with some other data",
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def profile(self, ctx, member: discord.Member = None):

@@ -13,7 +13,7 @@ class compCog(commands.Cog, name="comp command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
 
-    @discord.command(name="comp", usage="", description="")
+    @discord.command(name="comp", usage="(id)", description="Gives details to selected wca competition")
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def comp(self, ctx, id):
 
