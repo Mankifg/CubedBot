@@ -10,7 +10,7 @@ class HelpCog(commands.Cog, name="help command"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @commands.command(
+    @discord.command(
         name="help",
         usage="(commandName)",
         description="Display the help message.",
