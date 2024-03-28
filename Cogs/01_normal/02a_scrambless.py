@@ -9,80 +9,6 @@ import db
 from hardstorage import *
 import hardstorage
 
-from pyTwistyScrambler import (
-    scrambler222,
-    scrambler333,
-    scrambler444,
-    scrambler555,
-    scrambler666,
-    scrambler777,
-    megaminxScrambler,
-    squareOneScrambler,
-    pyraminxScrambler,
-    clockScrambler,
-    skewbScrambler,
-)
-
-
-def generate_scramble(cid):
-
-    if cid == "222":
-        return scrambler222.get_WCA_scramble()
-
-    elif cid == "333":
-        return scrambler333.get_WCA_scramble()
-
-    elif cid == "444":
-        return scrambler444.get_WCA_scramble()
-
-    elif cid == "555":
-        return scrambler555.get_WCA_scramble()
-
-    elif cid == "666":
-        return scrambler666.get_WCA_scramble()
-
-    elif cid == "777":
-        return scrambler777.get_WCA_scramble()
-
-    elif cid == "333oh":
-        return scrambler333.get_WCA_scramble()
-
-    elif cid == "333bf":
-        return scrambler333.get_WCA_scramble()
-
-    elif cid == "333mbf":
-        return "-1"
-
-    elif cid == "333fm":
-        return scrambler333.get_WCA_scramble()
-
-    elif cid == "444bf":
-        return scrambler444.get_WCA_scramble()
-
-    elif cid == "pyram":
-        return pyraminxScrambler.get_WCA_scramble()
-
-    elif cid == "skewb":
-        return skewbScrambler.get_WCA_scramble()
-
-    elif cid == "clock":
-        return clockScrambler.get_WCA_scramble()
-    elif cid == "minx":
-        return megaminxScrambler.get_WCA_scramble()
-
-    elif cid == "sq1":
-        return squareOneScrambler.get_WCA_scramble()
-
-    elif cid == "234":
-        ret = ""
-        ret = ret + "[2x2] " + scrambler222.get_WCA_scramble() + "\n"
-        ret = ret + "[3x3] " + scrambler333.get_WCA_scramble() + "\n"
-        ret = ret + "[4x4] " + scrambler444.get_WCA_scramble() + "\n"
-
-        return ret
-
-    else:
-        print("No Scrambler found.")
 
 
 mod_roles = db.load_second_table_idd(2)  # role
@@ -95,17 +21,17 @@ def real_week():
     return f"{now.year}-{now.isocalendar()[1]}"
 
 
-class scrumbleCog(commands.Cog, name="scrumbles command"):
+class s(commands.Cog, name="s command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
 
     @discord.command(
-        name="scrumbles",
+        name="s",
         usage="",
         description="MOD: Gives scrambles for week",
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
-    async def scrumbles(self, ctx):
+    async def s(self, ctx):
 
         '''role_ids = [role.id for role in ctx.author.roles]
         passed = functions.any_object_same(role_ids, mod_roles)'''
@@ -180,4 +106,4 @@ class scrumbleCog(commands.Cog, name="scrumbles command"):
             
 
 def setup(bot: commands.Bot):
-    bot.add_cog(scrumbleCog(bot))
+    bot.add_cog(s(bot))
