@@ -21,17 +21,17 @@ def real_week():
     return f"{now.year}-{now.isocalendar()[1]}"
 
 
-class s(commands.Cog, name="s command"):
+class scrum(commands.Cog, name="scrum command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
 
     @discord.command(
-        name="s",
+        name="scrum",
         usage="",
         description="MOD: Gives scrambles for week",
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
-    async def s(self, ctx):
+    async def scrum(self, ctx):
 
         '''role_ids = [role.id for role in ctx.author.roles]
         passed = functions.any_object_same(role_ids, mod_roles)'''
@@ -106,4 +106,4 @@ class s(commands.Cog, name="s command"):
             
 
 def setup(bot: commands.Bot):
-    bot.add_cog(s(bot))
+    bot.add_cog(scrum(bot))
