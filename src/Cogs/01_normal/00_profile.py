@@ -1,10 +1,9 @@
 import discord
 from discord.ext import commands
 import requests, json
-
 from datetime import datetime as dt
 
-import db
+import src.db as db
 
 print("profile loaded")
 

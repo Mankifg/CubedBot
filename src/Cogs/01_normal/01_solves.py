@@ -4,10 +4,10 @@ from discord.ext import commands
 
 from datetime import datetime as dt
 
-import db
-import functions
+import src.db as db
+import src.functions as functions
 
-from hardstorage import *
+from src.hardstorage import *
 
 REVERSE_DICT = reverse_dict = {v: k for k, v in DICTIONARY.items()}
 

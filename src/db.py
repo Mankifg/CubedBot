@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from functions import *
+from src.functions import *
 import os
 from supabase import create_client, Client
 import supabase

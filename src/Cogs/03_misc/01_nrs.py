@@ -2,9 +2,9 @@ import discord
 from discord.ext import commands
 import requests, json
 
-import db
+import src.db as db
 
-import wca_functions
+import src.wca_functions as wca_functions
 
 
 class nrCog(commands.Cog, name="nr command"):

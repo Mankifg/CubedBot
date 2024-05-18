@@ -2,10 +2,10 @@ import discord
 from discord.ext import commands
 import requests, json
 
-import db
-from hardstorage import * 
+import src.db as db
+from src.hardstorage import * 
 
-import wca_functions
+import src.wca_functions as wca_functions
 
 
 def max_len_in_collum(data):

@@ -2,10 +2,10 @@ import discord
 from discord.ext import commands
 import requests, json
 
-import db
-import hardstorage
-import wca_functions
-import functions
+import src.db as db
+import src.hardstorage
+import src.wca_functions as wca_functions
+import src.functions as functions
 
 from datetime import datetime as dt
 

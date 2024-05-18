@@ -2,9 +2,9 @@ import time
 from datetime import datetime as dt
 import json
 
-import hardstorage as hs 
+import src.hardstorage as hs 
 
-import db
+import src.db as db
 
 
 class SkillIssue(Exception):

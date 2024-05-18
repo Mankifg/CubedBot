@@ -4,10 +4,10 @@ import requests, json
 
 from datetime import datetime as dt
 
-import functions
-import db
-from hardstorage import *
-import hardstorage
+import src.functions as functions
+import src.db as db
+from src.hardstorage import *
+import src.hardstorage
 
 from pyTwistyScrambler import (
     scrambler222,

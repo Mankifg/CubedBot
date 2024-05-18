@@ -2,10 +2,10 @@ import discord
 from discord.ext import commands
 import requests, json
 
-import db
-from hardstorage import * 
-import wca_functions
-import functions
+import src.db as db
+from src.hardstorage import * 
+import src.wca_functions as wca_functions
+import src.functions as functions
 
 USER_ENDPOINT = "https://raw.githubusercontent.com/robiningelbrecht/wca-rest-api/master/api/persons/{}.json"
 

@@ -4,8 +4,8 @@ import requests, json
 
 from datetime import datetime as dt
 
-import functions
-import db
+import src.functions as functions
+import src.db as db
 
 
 mod_roles = db.load_second_table_idd(2) # role

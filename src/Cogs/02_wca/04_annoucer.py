@@ -6,9 +6,9 @@ from discord.ext import tasks
 import asyncio
 from datetime import datetime as dt
 
-import wca_functions
-import db
-import hardstorage
+import src.wca_functions as wca_functions
+import src.db as db
+import src.hardstorage
 
 LAT,LON = 46.0569, 14.5058
 

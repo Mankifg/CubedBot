@@ -1,13 +1,13 @@
 import discord
 from discord.ext import commands
 import requests, json
-import functions
+import src.functions as functions
 
 from datetime import datetime as dt
 
-import db
+import src.db as db
 
-from hardstorage import *
+from src.hardstorage import *
 
 
 class weeksolvesCog(commands.Cog, name="weeksolves command"):
