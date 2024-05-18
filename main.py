@@ -16,11 +16,6 @@ token = os.getenv("TOKEN")
 
 unwanted_files = ["exam.txt"]
 
-with open("settings.json", "r") as config:
-    data = json.load(config)
-    prefix = data["prefix"]
-    owner_id = data["owner_id"]
-
 status = cycle(
     [
         "Made by Mankifg",
@@ -28,11 +23,9 @@ status = cycle(
     ]
 )
 
-
 @tasks.loop(seconds=10)
 async def status_swap():
     await bot.change_presence(activity=discord.Game(next(status)))
-
 
 class Greetings(commands.Cog):
     def __init__(self, bot):
@@ -47,13 +40,13 @@ bot = commands.Bot(
     help_command=None,
     description="Mankifg's discord bot.",
     intents=intents,
-    owner_id=owner_id,
+    owner_id=650756055390879757,
 )
 
 setup_time = time.time()
 
 if __name__ == "__main__":
-    for path in Path("./Cogs").rglob("*.py"):
+    for path in Path("./src/Cogs").rglob("*.py"):
 
         p = str(path)
         p = p.replace("\\", ".")
@@ -62,7 +55,6 @@ if __name__ == "__main__":
         bot.load_extension(f"{p[:-3]}")
 
 boot_time = time.time()
-
 
 @bot.event
 async def on_ready():
