@@ -4,7 +4,7 @@ import requests, json
 
 import src.db as db
 
-import src.wca_functions as wca_functions
+import src.wca_function as wca_function
 
 
 class nrCog(commands.Cog, name="nr command"):

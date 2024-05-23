@@ -4,7 +4,7 @@ import requests, json
 
 import src.db as db
 
-import src.wca_functions as wca_functions
+import src.wca_function as wca_function
 
 
 class changewcaidCog(commands.Cog, name="changewcaid command"):
@@ -18,7 +18,7 @@ class changewcaidCog(commands.Cog, name="changewcaid command"):
 
         user_data = db.get_user_data(userObj.id)
 
-        wca_id_exitsts = wca_functions.wca_id_exists(user_input_wca_id)
+        wca_id_exitsts = wca_function.wca_id_exists(user_input_wca_id)
         
         if user_input_wca_id is None:
 

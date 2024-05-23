@@ -3,8 +3,8 @@ from discord.ext import commands
 import requests, json
 
 import src.db as db
-import src.hardstorage
-import src.wca_functions as wca_functions
+import src.hardstorage as hardstorage
+import src.wca_function as wca_function
 import src.functions as functions
 
 from datetime import datetime as dt
@@ -17,7 +17,7 @@ class compCog(commands.Cog, name="comp command"):
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def comp(self, ctx, id):
 
-        success, data = wca_functions.get_comp_data(id)
+        success, data = wca_function.get_comp_data(id)
 
         if not success:
             q = discord.Embed(
@@ -30,7 +30,7 @@ class compCog(commands.Cog, name="comp command"):
 
         q = discord.Embed(
             title=f":flag_{data['country'].lower()}: | {data['name']}",
-            description=f"{data['city']}, {wca_functions.COUNTRIES_DICT.get(data['country'])} | [{data['id']}](https://www.worldcubeassociation.org/competitions/{data['id']})",
+            description=f"{data['city']}, {wca_function.COUNTRIES_DICT.get(data['country'])} | [{data['id']}](https://www.worldcubeassociation.org/competitions/{data['id']})",
             color=discord.Colour.blue(),
         )
         start_date = data["date"]["from"]

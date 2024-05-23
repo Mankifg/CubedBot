@@ -4,7 +4,7 @@ import requests, json
 
 import src.db as db
 import src.hardstorage
-import src.wca_functions as wca_functions
+import src.wca_function as wca_function
 import src.functions as functions
 
 from datetime import datetime as dt
@@ -40,7 +40,7 @@ class finderCog(commands.Cog, name="finder command"):
         drzava,
     ):
 
-        comps = wca_functions.find_by_date(dan, mesec, leto)
+        comps = wca_function.find_by_date(dan, mesec, leto)
 
         await ctx.send("finder")
 

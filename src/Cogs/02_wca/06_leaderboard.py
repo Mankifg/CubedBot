@@ -5,7 +5,7 @@ import requests, json
 import src.db as db
 from src.hardstorage import * 
 
-import src.wca_functions as wca_functions
+import src.wca_function as wca_function
 
 
 def max_len_in_collum(data):

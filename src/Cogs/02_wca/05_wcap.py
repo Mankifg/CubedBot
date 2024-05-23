@@ -4,7 +4,7 @@ import requests, json
 
 import src.db as db
 from src.hardstorage import * 
-import src.wca_functions as wca_functions
+import src.wca_function as wca_function
 import src.functions as functions
 
 USER_ENDPOINT = "https://raw.githubusercontent.com/robiningelbrecht/wca-rest-api/master/api/persons/{}.json"
@@ -33,7 +33,7 @@ class wcapCog(commands.Cog, name="wcap command"):
         else:
             wca_id = user_wca_id
 
-        wca_id_exists = wca_functions.wca_id_exists(wca_id)
+        wca_id_exists = wca_function.wca_id_exists(wca_id)
 
         if not wca_id_exists:
             q = discord.Embed(
@@ -44,9 +44,9 @@ class wcapCog(commands.Cog, name="wcap command"):
             await ctx.send(embed=q)
             return
 
-        user_data = wca_functions.get_wca_data(wca_id)
+        user_data = wca_function.get_wca_data(wca_id)
 
-        picture_url = wca_functions.get_picture_url(wca_id)
+        picture_url = wca_function.get_picture_url(wca_id)
 
 
         idd = user_data["id"]

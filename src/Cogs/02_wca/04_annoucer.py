@@ -6,9 +6,9 @@ from discord.ext import tasks
 import asyncio
 from datetime import datetime as dt
 
-import src.wca_functions as wca_functions
+import src.wca_function as wca_function
 import src.db as db
-import src.hardstorage
+import src.hardstorage as hardstorage
 
 LAT,LON = 46.0569, 14.5058
 
@@ -33,13 +33,13 @@ class annouceCog(commands.Cog, name="annouce command"):
                 month = month % 12
                 year = year + 1
             
-            data = wca_functions.find_by_date(0,month,year)
+            data = wca_function.find_by_date(0,month,year)
             
             
             if data is not None:
                 all_comps.extend(data)
             
-        distanced_comps = wca_functions.filter_by_distance(all_comps)
+        distanced_comps = wca_function.filter_by_distance(all_comps)
         
         already_printed_comps = db.load_second_table_idd(3)
         
@@ -60,14 +60,14 @@ class annouceCog(commands.Cog, name="annouce command"):
         for comp in final_comps:
             
             comp_id = comp["id"]
-            success, data = wca_functions.get_comp_data(comp_id)
+            success, data = wca_function.get_comp_data(comp_id)
             
             if not success:
                 continue
             else:
                 q = discord.Embed(
                     title=f":flag_{data['country'].lower()}: | {data['name']}",
-                    description=f"{data['city']}, {wca_functions.COUNTRIES_DICT.get(data['country'])} | [{data['id']}](https://www.worldcubeassociation.org/competitions/{data['id']})",
+                    description=f"{data['city']}, {wca_function.COUNTRIES_DICT.get(data['country'])} | [{data['id']}](https://www.worldcubeassociation.org/competitions/{data['id']})",
                     color=discord.Colour.blue(),
                 )
                 start_date = data["date"]["from"]

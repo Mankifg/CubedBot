@@ -66,4 +66,3 @@ def get_comp_data(id):
 
     return True,resp.json()
     
-
