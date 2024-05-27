@@ -7,7 +7,7 @@ from datetime import datetime as dt
 import src.functions as functions
 import src.db as db
 from src.hardstorage import *
-import src.hardstorage
+import src.hardstorage as hardstorage
 
 from pyTwistyScrambler import (
     scrambler222,
