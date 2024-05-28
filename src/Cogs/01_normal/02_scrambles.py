@@ -6,8 +6,8 @@ from datetime import datetime as dt
 
 import src.functions as functions
 import src.db as db
-from src.hardstorage import *
 import src.hardstorage as hardstorage
+from src.hardstorage import *
 
 from pyTwistyScrambler import (
     scrambler222,
@@ -23,6 +23,11 @@ from pyTwistyScrambler import (
     skewbScrambler,
 )
 
+def category_attempts(cid): #catgory id
+    if cid in MO3+BO3:
+        return 3
+    else:
+        return 5
 
 def generate_scramble(cid):
 
