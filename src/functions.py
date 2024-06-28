@@ -62,20 +62,32 @@ def avg_of(solves, a_type):
         else:
             return -1
         
-        real_avg = sum(solves) / len(solves)
-        print(real_avg,round(real_avg))
-        return round(real_avg)
+        try:
+            real_avg = sum(solves) / len(solves)
+            print(real_avg,round(real_avg))
+            return round(real_avg)
+        except ZeroDivisionError:
+            print(solves)
+            print("ERROR ZeroDivisionError")
+            return -1
 
     elif averge_mode == "mo3":
         solves.sort()
-        solves.remove(-1)
-        solves.remove(-1)
+        if len(solves) == 5:
+            solves.remove(-1)
+            solves.remove(-1)
         if -1 in solves:
             return -1
 
-        real_avg = sum(solves) / len(solves)
-        print(real_avg,round(real_avg))
-        return round(real_avg)
+        
+        try:
+            real_avg = sum(solves) / len(solves)
+            print(real_avg,round(real_avg))
+            return round(real_avg)
+        except ZeroDivisionError:
+            print(solves)
+            print("ERROR ZeroDivisionError")
+            return -1
 
     else:
         raise SkillIssue("Invalid type")
@@ -126,7 +138,7 @@ def readify(num):
     else:
         formatted_time = f"{minutes:02d}:"
 
-    formatted_time = f"{formatted_time}{seconds:02d}.{centisecs:02d}"
+    formatted_time = f"{formatted_time}{seconds:01d}.{centisecs:02d}"
 
     return formatted_time
 

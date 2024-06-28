@@ -5,6 +5,8 @@ import requests, json
 from datetime import datetime as dt
 import datetime
 from datetime import timedelta
+import time
+
 
 import src.db as db
 from src.hardstorage import * 
@@ -62,14 +64,15 @@ class userfinderCog(commands.Cog, name="userfinder command"):
         
         print(len(all_competitions),all_competitions)
         
-        q = discord.Embed(title="Iskalec")
+        q = discord.Embed(title=f"Iskalec tekmovanj")
         q.add_field(name="Časovno območje",
                     value=f"<t:{int(start_date.timestamp())}:D> - <t:{int(end_date.timestamp())}:D>")
         
-        await ctx.send(embed=q)
+        first_send = await ctx.respond(embed=q)
         
         attending = ""
         
+        s_time = time.time()
         for comp in all_competitions:
             c = wca_function.competitors_in_comp(comp,nationality.lower())
             if c > 0:
@@ -81,7 +84,7 @@ class userfinderCog(commands.Cog, name="userfinder command"):
                     apnd = f"{c} tekmovalca"
                 elif c in [3,4]:
                     apnd = f"{c} tekmovalci"
-                elif c == 5:
+                else:
                     apnd = f"{c} tekmovalcev"
                 
                 good,comp_data = wca_function.get_comp_data(comp)
@@ -89,16 +92,16 @@ class userfinderCog(commands.Cog, name="userfinder command"):
                 name = comp_data["name"]
                     
                 attending += f"[{name}](https://www.worldcubeassociation.org/competitions/{comp}/registrations)\n* {apnd}\n"
-            
+        e_time = time.time()
         if attending == "":
             attending = "/"
         
-        q.add_field(name="Rezultati",value=attending,inline=False)
+        q.add_field(name=f"Tekmovanja v izbranem obdobju, kjer so prijavljeni tekmovalci države: {nationality.title()}",value=attending,inline=False)
             
             
-        q.add_field(name="Statistika",value=f"Skenirano: {len(all_competitions)} tekmovanj.")
+        q.add_field(name="Statistika",value=f"Skenirano: {len(all_competitions)} tekmovanj. Čas: {int(e_time-s_time)} sec")
         
-        await ctx.send(embed=q)
+        await first_send.edit(embed=q)
             
             
             
