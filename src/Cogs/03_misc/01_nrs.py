@@ -71,7 +71,7 @@ class nrCog(commands.Cog, name="nr command"):
         passing = []
         
         for record in resp:
-            if record["result"]["person"]["country"]["iso2"] == "CN":
+            if record["result"]["person"]["country"]["iso2"] == "SI":
                 passing.append(record)
                 
         already_submited = db.load_second_table_idd("5")
@@ -133,7 +133,7 @@ class nrCog(commands.Cog, name="nr command"):
 
     @wca_live_check.before_loop
     async def before_send_message(self):
-        print("PRIMED")
+        print("PRIMED SI")
         await self.bot.wait_until_ready()
 
 
