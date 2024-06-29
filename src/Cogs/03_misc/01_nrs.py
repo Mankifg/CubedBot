@@ -103,18 +103,34 @@ class nrCog(commands.Cog, name="nr command"):
                     times.append(el["result"])
                     nice_times.append(functions.readify(el["result"]))
 
-                if record["type"] == "average":                        
-                    q.add_field(
-                        name=f"AVG: {functions.readify(functions.avg_of(times,round_obj['competitionEvent']['event']['id']))}",
-                        value=f"TIMES: {','.join(nice_times)}",
-                    )
+                if record["type"] == "average":    
+                    try:                    
+                        q.add_field(
+                            name=f"AVG: {functions.readify(functions.avg_of(times,round_obj['competitionEvent']['event']['id']))}",
+                            value=f"TIMES: {','.join(nice_times)}",
+                        )
+                    except:
+                        q.add_field(name=",".join(nice_times),value="..")
                     
                 else:
-                    q.add_field(
-                        name=f"TIME: {functions.readify(min(times))}",
-                        value=f"AVG: {functions.readify(functions.avg_of(times,round_obj['competitionEvent']['event']['id']))}",
-                    )
-                
+                    if round_obj['competitionEvent']['event']['id'] == "333mbf":  
+                        best_time = str(best_time)
+                        solved = 99 - int(best_time[0:2]) + int(best_time[7:9])
+                        all_cubes = 99 - int(best_time[0:2]) + 2 * int(best_time[7:9])
+                        c_time = int(best_time[2:7])
+                        
+                        c_time = functions.readify(c_time*100)
+                        
+                        best_time = f"{solved}/{all_cubes} {c_time[:-3]}"
+                        
+                    try:   
+                        q.add_field(
+                            name=f"TIME: {functions.readify(min(times))}",
+                            value=f"AVG: {functions.readify(functions.avg_of(times,round_obj['competitionEvent']['event']['id']))}",
+                        )
+                    except:
+                        q.add_field(name=best_time,value="..")
+                        
                 
                 channel = int(already_submited["data"]["channel"])
                 print(channel)
@@ -133,7 +149,7 @@ class nrCog(commands.Cog, name="nr command"):
 
     @wca_live_check.before_loop
     async def before_send_message(self):
-        print("PRIMED SI")
+        print("PRIMED SI e hand")
         await self.bot.wait_until_ready()
 
 
