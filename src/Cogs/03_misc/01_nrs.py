@@ -80,18 +80,18 @@ class nrCog(commands.Cog, name="nr command"):
                     
         for record in passing:
             if not record["id"] in already_submited["data"]["already_sent"]:
-                q = discord.Embed(title=f'{record["tag"]} | New {record["type"]}')
+                q = discord.Embed(title=f'{record["tag"]} | {record["type"]}')
                 
                 person = record["result"]["person"]
                 round_obj = record["result"]["round"]
                 
                 q.add_field(
                     name=f':flag_{person["country"]["iso2"].lower()}: | {person["name"]}', # ( https://www.worldcubeassociation.org/persons/{person["wcaId"]} )',
-                    value=f'{person["wcaId"]} from {person["country"]["name"]}',
+                    value=f'{person["wcaId"]}',
                     
                 )
                 q.add_field(
-                    name=f':{round_obj["competitionEvent"]["event"]["id"]}: | {round_obj["competitionEvent"]["event"]["name"]}',
+                    name=f'{round_obj["competitionEvent"]["event"]["name"]}',
                     value=f'{round_obj["competitionEvent"]["competition"]["name"]}',
                     inline=False,
                 )
@@ -149,7 +149,7 @@ class nrCog(commands.Cog, name="nr command"):
 
     @wca_live_check.before_loop
     async def before_send_message(self):
-        print("PRIMED SI e hand")
+        print("PRIMED")
         await self.bot.wait_until_ready()
 
 

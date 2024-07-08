@@ -3,7 +3,7 @@ from datetime import datetime as dt
 import json
 
 import src.hardstorage as hs 
-
+import src.functions as functions
 import src.db as db
 
 
@@ -93,54 +93,68 @@ def avg_of(solves, a_type):
         raise SkillIssue("Invalid type")
 
 
-def unredify(num):
+def unredify(time_str):
 
-    if num in [-1, "-1", "dnf", "dns"]:
-        return -1
+    try:
+        time_str = time_str.lower()
+    except AttributeError: # number
+        pass
 
-    nn = 0
-    if ":" in num:
-        m, sec = num.split(":")
-        try:
-            sec = float(sec)
-        except ValueError:
-            return -1
-        nn = int(m) * 60 + float(sec)
-    else:
-        try:
-            nn = float(num)
-        except ValueError:
-            return -1
-
-    if nn < 0.06:
+    if time_str in [-1, "-1", "dnf"]:
         return -1
     
-    num = int(nn * 100)
+    try:
+        if ':' in time_str:
+            parts = time_str.split(':')
+            if len(parts) == 3:
+                hours, minutes, seconds = parts
+                total_centiseconds = (int(hours) * 3600 + int(minutes) * 60 + float(seconds)) * 100
+            elif len(parts) == 2:
+                minutes, seconds = parts
+                total_centiseconds = (int(minutes) * 60 + float(seconds)) * 100
+        else:
+            total_centiseconds = float(time_str) * 100
+    except:
+        print(f"[ERROR] Parsing time went wrong: {time_str}")
+    
+    return int(total_centiseconds)
 
-    return num
 
-
-def readify(num):
-    num = round(num)
-
-    print("to rediy", num, "_" * 10)
-    if num == -1:
+def readify(centisec,eventId="333"):
+    
+    if eventId == "333mbf":
+        mbld = centisec
+        solved = 99 - int(mbld[0:2]) + int(mbld[7:9])
+        all_cubes = 99 - int(mbld[0:2]) + 2 * int(mbld[7:9])
+        c_time = int(mbld[2:7])
+        c_time = functions.readify(c_time*100)
+        mbld = f"{solved}/{all_cubes} {c_time}"
+        
+        return mbld
+    
+    elif eventId == "333fm":
+        return centisec
+    
+    if centisec == -1:
         return "DNF"
-
-    minutes, remainder = divmod(num, 6000)
-
-    seconds, centisecs = divmod(remainder, 100)
-
-    minutes, seconds, centisecs = list(map(int, [minutes, seconds, centisecs]))
-
-    if minutes == 0:
-        formatted_time = ""
+    elif centisec == -2:
+        return "DNS" 
+    
+    hours = centisec // 360000
+    centisec %= 360000
+    minutes = centisec // 6000
+    centisec %= 6000
+    seconds = centisec // 100
+    centisec %= 100
+    
+    if hours > 0:
+        return f"{hours}:{minutes:02}:{seconds:02}"
+    elif minutes >= 10:
+        return f"{minutes:02}:{seconds:02}"
+    elif minutes > 0:
+        return f"{minutes}:{seconds:02}.{centisec:02}"
     else:
-        formatted_time = f"{minutes:02d}:"
-
-    formatted_time = f"{formatted_time}{seconds:01d}.{centisecs:02d}"
-
-    return formatted_time
+        return f"{seconds}.{centisec:02}"
 
 
 def db_times_to_user_format(array_of_times):

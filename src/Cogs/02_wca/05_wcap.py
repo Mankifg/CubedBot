@@ -85,20 +85,8 @@ class wcapCog(commands.Cog, name="wcap command"):
             eventId = elem["eventId"]
             best_time = elem["best"]
             rank = elem["rank"]
-            if eventId == "333fm":
-                best_time = best_time
-            elif eventId == "333mbf":  
-                best_time = str(best_time)
-                solved = 99 - int(best_time[0:2]) + int(best_time[7:9])
-                all_cubes = 99 - int(best_time[0:2]) + 2 * int(best_time[7:9])
-                c_time = int(best_time[2:7])
-                
-                c_time = functions.readify(c_time*100)
-                
-                best_time = f"{solved}/{all_cubes} {c_time[:-3]}"
-                
-            else:            
-                best_time = functions.readify(best_time)
+                 
+            best_time = functions.readify(best_time)
             
             u_data.update({eventId: {"single": best_time, "singleRank": rank}})
             
@@ -108,20 +96,8 @@ class wcapCog(commands.Cog, name="wcap command"):
             eventId = elem["eventId"]
             best_time = elem["best"]
             rank = elem["rank"]
-            if eventId == "333fm":
-                best_time = int(best_time) / 100
-            elif eventId == "333mbf":  
-                best_time = str(best_time)
-                solved = 99 - int(best_time[0:2]) + int(best_time[7:9])
-                all_cubes = 99 - int(best_time[0:2]) + 2 * int(best_time[7:9])
-                c_time = int(best_time[2:7])
-                
-                c_time = functions.readify(c_time*100)
-                
-                best_time = f"{solved} / {all_cubes} {c_time}"
-                
-            else:            
-                best_time = functions.readify(best_time)
+                       
+            best_time = functions.readify(best_time)
             
             
             u_data.update({eventId: {"single":u_data[eventId]["single"],"singleRank":u_data[eventId]["singleRank"],"avg": best_time, "avgRank": rank}})
