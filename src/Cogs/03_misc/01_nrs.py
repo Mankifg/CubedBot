@@ -98,50 +98,34 @@ class nrCog(commands.Cog, name="nr command"):
                 
                     
                 times = []
-                nice_times = []
                 for el in record["result"]["attempts"]:
                     times.append(el["result"])
-                    nice_times.append(functions.readify(el["result"]))
-
-                if record["type"] == "average":    
-                    try:                    
-                        q.add_field(
-                            name=f"AVG: {functions.readify(functions.avg_of(times,round_obj['competitionEvent']['event']['id']))}",
-                            value=f"TIMES: {','.join(nice_times)}",
-                        )
-                    except:
-                        q.add_field(name=",".join(nice_times),value="..")
                     
+
+                    
+                if record["type"] == "average":  
+                                 
+                    q.add_field(
+                        name=f'SOLVES:',
+                        value=f'```{functions.beutify(times,round_obj["competitionEvent"]["event"]["id"])}```',
+                    )
                 else:
-                    if round_obj['competitionEvent']['event']['id'] == "333mbf":  
-                        best_time = str(best_time)
-                        solved = 99 - int(best_time[0:2]) + int(best_time[7:9])
-                        all_cubes = 99 - int(best_time[0:2]) + 2 * int(best_time[7:9])
-                        c_time = int(best_time[2:7])
-                        
-                        c_time = functions.readify(c_time*100)
-                        
-                        best_time = f"{solved}/{all_cubes} {c_time[:-3]}"
-                        
-                    try:   
-                        q.add_field(
-                            name=f"TIME: {functions.readify(min(times))}",
-                            value=f"AVG: {functions.readify(functions.avg_of(times,round_obj['competitionEvent']['event']['id']))}",
-                        )
-                    except:
-                        q.add_field(name=best_time,value="..")
+                    times = [x for x in times if x != -1]
+
+                    q.add_field(
+                        name=f'SINGLE: ```{functions.readify(min(times))}```',
+                        value=f'SOLVES: {functions.beutify(times,round_obj["competitionEvent"]["event"]["id"])}',
+                    )
+                
                         
                 
                 channel = int(already_submited["data"]["channel"])
-                print(channel)
                 ch = self.bot.get_channel(channel)
                 
                 await ch.send(embed=q)
                 print("send")
                 
-                
                 already_submited["data"]["already_sent"].append(record["id"])
-                
                 db.save_second_table_idd(already_submited)
                 
                 
