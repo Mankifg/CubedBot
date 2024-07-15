@@ -169,9 +169,10 @@ class resultsCog(commands.Cog, name="results command"):
 
             to_send = to_send + one_line + "\n"
 
-        q.add_field(name="Lestvica", value=f"{to_send}")
+        await ctx.send(to_send)
+        #q.add_field(name="Lestvica", value=f"{to_send}")
 
-        await ctx.send(embed=q)
+        #await ctx.send(embed=q)
 
 
 # userObj = await self.bot.fetch_user(u_data["user_id"]).display_name
