@@ -387,29 +387,25 @@ def sort_user_points(user_points):
 
 
 def place_symbol(place):
-    sym = "🔹"
-
     if place == 1:
-        sym = "🥇"
+        return "🥇"
     elif place == 2:
-        sym = "🥈"
+        return "🥈"
     elif place == 3:
-        sym = "🥉"
+        return "🥉"
 
-    return sym
+    return ""
 
 
 def place_symbol_for_all(place):
-    sym = "🟨"
-
     if place == 1:
-        sym = "🥇"
+        return "🥇"
     elif place == 2:
-        sym = "🥈"
+        return "🥈"
     elif place == 3:
-        sym = "🥉"
+        return "🥉"
 
-    return sym
+    return ""
 
 
 def give_user_points(data):

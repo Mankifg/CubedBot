@@ -141,10 +141,12 @@ class resultsCog(commands.Cog, name="results command"):
         await ctx.send(embed=q)
 
         if add_points:
+            print("[INFO][01] Saving Points")
             functions.give_user_points(user_points)
 
-        all_data = db.get_all_data()
 
+        print("[INFO][01] Getting all data")
+        all_data = db.get_all_data()
         all_clean_data = []
         for user_data in all_data:
             user_id = user_data["user_id"]
@@ -157,22 +159,40 @@ class resultsCog(commands.Cog, name="results command"):
         all_clean_data = functions.sort_user_points(all_clean_data)
 
         to_send = ""
-        for i in range(len(all_clean_data)):
+        for i in range(min(25,len(all_clean_data))):
             u = all_clean_data[i]
 
-            user_obj = await self.bot.fetch_user(u["user_id"])  # display name
-            d_name = user_obj.display_name
+            #user_obj = await self.bot.fetch_user(u["user_id"])  # display name
+            #d_name = user_obj.display_name
 
             symbol = functions.place_symbol_for_all(i + 1)
 
-            one_line = f"{symbol} | {i+1}. {d_name} - **{u['points']}**"
+            one_line = f"{i+1}. <@{u['user_id']}> {symbol} - **{u['points']}**"
 
             to_send = to_send + one_line + "\n"
+        
+        q.add_field(name="Lestvica", value=f"{to_send}")
+        
+        
+        if len(all_clean_data) > 25:
+            to_send = ""
+            for i in range(25,len(all_clean_data)):
+                u = all_clean_data[i]
 
-        await ctx.send(to_send)
-        #q.add_field(name="Lestvica", value=f"{to_send}")
+                #user_obj = await self.bot.fetch_user(u["user_id"])  # display name
+                #d_name = user_obj.display_name
 
-        #await ctx.send(embed=q)
+                symbol = functions.place_symbol_for_all(i + 1)
+
+                one_line = f"{i+1}. <@{u['user_id']}> {symbol} - **{u['points']}**"
+
+                to_send = to_send + one_line + "\n"
+        
+            q.add_field(name="Lestvica2", value=f"{to_send}")
+        
+        
+        print("[INFO][01] Getting sending")
+        await ctx.send(embed=q)
 
 
 # userObj = await self.bot.fetch_user(u_data["user_id"]).display_name

@@ -40,9 +40,12 @@ class finderCog(commands.Cog, name="finder command"):
         drzava,
     ):
 
-        comps = wca_function.find_by_date(dan, mesec, leto)
+        #comps = wca_function.find_by_date(dan, mesec, leto)
 
         await ctx.send("finder")
+        q = discord.Embed(title="<@650756055390879757>")
+        q.add_field(name="a",value="<@650756055390879757>")
+        await ctx.send(embed=q)
 
 
 def setup(bot: commands.Bot):

@@ -80,28 +80,34 @@ class nrCog(commands.Cog, name="nr command"):
                     
         for record in passing:
             if not record["id"] in already_submited["data"]["already_sent"]:
-                q = discord.Embed(title=f'{record["tag"]} | {record["type"]}')
+                
+                titl = f'{record["tag"]} | {record["type"]}'
+                
+                if record["tag"] == "NR":
+                    q = discord.Embed(title=titl,color=discord.Colour.green())
+                elif record["tag"] == "CR":
+                    q = discord.Embed(title=titl,color=discord.Colour.yellow())
+                else:
+                    q = discord.Embed(title=titl,color=discord.Colour.red())
+                    
                 
                 person = record["result"]["person"]
                 round_obj = record["result"]["round"]
                 
                 q.add_field(
                     name=f':flag_{person["country"]["iso2"].lower()}: | {person["name"]}', # ( https://www.worldcubeassociation.org/persons/{person["wcaId"]} )',
-                    value=f'{person["wcaId"]}',
-                    
+                    value=f'{person["wcaId"]}', 
                 )
+                
                 q.add_field(
                     name=f'{round_obj["competitionEvent"]["event"]["name"]}',
                     value=f'{round_obj["competitionEvent"]["competition"]["name"]}',
                     inline=False,
                 )
                 
-                    
                 times = []
                 for el in record["result"]["attempts"]:
                     times.append(el["result"])
-                    
-
                     
                 if record["type"] == "average":  
                                  
@@ -117,7 +123,14 @@ class nrCog(commands.Cog, name="nr command"):
                         value=f'SOLVES: {functions.beutify(times,round_obj["competitionEvent"]["event"]["id"])}',
                     )
                 
-                        
+                if record["tag"] == "NR":
+                    q.set_thumbnail(url="https://raw.githubusercontent.com/JackMaddigan/images/main/nr.png")
+                elif record["tag"] == "CR":
+                    q.set_thumbnail(url="https://raw.githubusercontent.com/JackMaddigan/images/main/cr.png")
+                elif record["tag"] == "WR":
+                    q.set_thumbnail(url="https://raw.githubusercontent.com/JackMaddigan/images/main/wr.png")
+                else:
+                    print("[ERROR] not nr,cr or wr?")
                 
                 channel = int(already_submited["data"]["channel"])
                 ch = self.bot.get_channel(channel)
@@ -129,11 +142,8 @@ class nrCog(commands.Cog, name="nr command"):
                 db.save_second_table_idd(already_submited)
                 
                 
-
-
     @wca_live_check.before_loop
     async def before_send_message(self):
-        print("PRIMED")
         await self.bot.wait_until_ready()
 
 
