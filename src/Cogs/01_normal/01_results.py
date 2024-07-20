@@ -9,6 +9,8 @@ import src.db as db
 
 from src.hardstorage import *
 
+import asyncio
+
 mod_roles = db.load_second_table_idd(2)  # role
 mod_roles = mod_roles["data"]
 mod_roles = list(map(int, mod_roles))
@@ -131,10 +133,8 @@ class resultsCog(commands.Cog, name="results command"):
 
             symbol = functions.place_symbol(i + 1)
 
-            one_line = f"{symbol} | {i+1}. {d_name} - **{u['points']}**"
-
-            to_send = to_send + one_line + "\n"
-
+            to_send += f"{i+1}. {d_name} - **{u['points']}**\n"
+            
         q.add_field(name="Lestvica", value=f"{to_send}")
         q.set_footer(text=bottom_msg)
 
@@ -147,6 +147,7 @@ class resultsCog(commands.Cog, name="results command"):
 
         print("[INFO][01] Getting all data")
         all_data = db.get_all_data()
+        print("[INFO][01_res] got all data")
         all_clean_data = []
         for user_data in all_data:
             user_id = user_data["user_id"]
@@ -158,40 +159,37 @@ class resultsCog(commands.Cog, name="results command"):
 
         all_clean_data = functions.sort_user_points(all_clean_data)
 
-        to_send = ""
-        for i in range(min(25,len(all_clean_data))):
-            u = all_clean_data[i]
+        print("sorted")
 
-            #user_obj = await self.bot.fetch_user(u["user_id"])  # display name
-            #d_name = user_obj.display_name
-
-            symbol = functions.place_symbol_for_all(i + 1)
-
-            one_line = f"{i+1}. <@{u['user_id']}> {symbol} - **{u['points']}**"
-
-            to_send = to_send + one_line + "\n"
-        
-        q.add_field(name="Lestvica", value=f"{to_send}")
-        
-        
-        if len(all_clean_data) > 25:
+        indx = 0
+        cycle = 0
+        while 1:
+            if indx >= len(all_clean_data):
+                break
             to_send = ""
-            for i in range(25,len(all_clean_data)):
-                u = all_clean_data[i]
+            cycle += 1
+            
+            for i in range(25):
+                if indx >= len(all_clean_data):
+                    break
+                
+                u = all_clean_data[indx]
 
-                #user_obj = await self.bot.fetch_user(u["user_id"])  # display name
-                #d_name = user_obj.display_name
+                print(u)
+                asyncio.sleep(1)
+                user_obj = await self.bot.fetch_user(u["user_id"])  # display name
+                d_name = user_obj.display_name
 
-                symbol = functions.place_symbol_for_all(i + 1)
+                symbol = functions.place_symbol_for_all(indx + 1)
 
-                one_line = f"{i+1}. <@{u['user_id']}> {symbol} - **{u['points']}**"
+                to_send += f"{indx+1}. {d_name} {symbol} - **{u['points']}**\n"
 
-                to_send = to_send + one_line + "\n"
+                indx += 1
         
-            q.add_field(name="Lestvica2", value=f"{to_send}")
+            q.add_field(name=f"Lestvica {cycle}", value=to_send)
         
         
-        print("[INFO][01] Getting sending")
+        print("[INFO][01_res] Sending")
         await ctx.send(embed=q)
 
 
