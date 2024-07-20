@@ -41,7 +41,7 @@ class userfinderCog(commands.Cog, name="userfinder command"):
         
     @tasks.loop(seconds=58*60)
     async def userf(self):
-        if dt.now().weekday == 0 and dt.now().hour == 8: 
+        if dt.now().weekday == 2 and dt.now().hour == 8: 
             print("Sending")
             
             start_date = dt.now()        
