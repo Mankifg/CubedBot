@@ -80,6 +80,7 @@ class nrCog(commands.Cog, name="nr command"):
                     
         for record in passing:
             if not record["id"] in already_submited["data"]["already_sent"]:
+                print("RECORD FOUND !!!", record)
                 
                 titl = f'{record["tag"]} | {record["type"]}'
                 
