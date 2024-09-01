@@ -3,10 +3,18 @@
 () - obvezen 
 [] neobvezen
 
+# Kategorije
+* [Komande za tedensko tekmovanje](#komande-za-tedensko-tekmovanje)
+* [WCA komande](#wca-komande)
+* [Komande za moderatorje](#komande-za-moderatorje)
+-----
 ## Komande za tedensko tekmovanje 
+* [Solves](#solves)
+* [Weeksolves](#weeksolves)
 
+-----
 ### Solves
-Vnos časov za TT / Enter times for WC
+> Vnos časov za TT / Enter times for WC
 
 Uporaba:
 /solves
@@ -37,14 +45,18 @@ Prikaz časev je enak kot pri [Solvih](#solves),
 ## WCA komande
 Komande za podatke iz WCA spletne strani
 
-## changewcaid
+* [Spremeni wca id](#changewcaid)
+* [Tekmovanje](#comp)
+* [WCA Profil](#wcap)
+
+### changewcaid
 Spremeni wca id povezan z discord računom / change wca id connected with discord account
 
 Uporaba: /changewcaid (wca id)
 
 NOTE: Trenutno ni nobenega sistema, ki preveri če je uporabnik res lastnik wca računa 
 
-## comp
+### comp
 Info glede wca tekmovanja / Info about wca competition
 
 Uporaba: /comp (id)
@@ -63,7 +75,7 @@ Uporaba: /wcap [id] [@]
 
 Bot sprejeme wca id ali omemba s prednostjo na idju
 
-| ![solves](/assets/images/guide/comp.png) | 
+| ![solves](/assets/images/guide/wcap_max_park.png) | 
 |:--:| 
 | *Primer za Max Parka ([2012PARK03](https://www.worldcubeassociation.org/persons/2012PARK03))* |
 
@@ -71,7 +83,7 @@ Bot sprejeme wca id ali omemba s prednostjo na idju
 Poišče prijavljene tekmovalce glede na regijo / Finds registered competitors by region
 
 Uporaba: /userfinder (regija) [začetek] [konec]
-* državnost: npr. Slovenia
+* regija: npr. Slovenia
 * začetek: zaćetni datum format YYYY-MM-DD, privzeto: dananšnji dan
 * konec: kočni datum format YYYY-MM-DD, privzeto: začetek + 7d
 * BONUS: konec je lahko tudi število dni of začetka
@@ -80,20 +92,26 @@ Uporaba: /userfinder (regija) [začetek] [konec]
 |:--:| 
 | *Primer za iskanje* |
 
-
+-----
 ## Komande za moderatorje: 
 !: Vse komande potrebujejo mod rolo
 
+* [Scrambles](#scrambles)
+* [Modforce](#modforce)
+* [Newweek](#newweek)
+* 
+-----
 ### Scrambles
-Generiranje tedenskih mešalnih algoritmov / Generates weeky scrambles
+> Generiranje tedenskih mešalnih algoritmov / Generates weeky scrambles
 
 Uporaba: /scrambles
 
 ### Modforce
-Izbriši tedenske časa izbranega uporabnika / Deleted the weeky times for user
+> Izbriši tedenske časa izbranega uporabnika / Deleted the weeky times for user
 
 Uporaba: /modforce (@oseba)
 
 ### Newweek
-Manualno preklopi teden / Maunaly change week
+> Manualno preklopi teden / Maunaly change week
 
+Uporaba: /modforce (ime tedna)
