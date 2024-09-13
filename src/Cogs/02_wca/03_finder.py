@@ -29,7 +29,7 @@ class finderCog(commands.Cog, name="finder command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
 
-    @discord.command(name="finder", usage="", description="no")
+    @discord.command(name="finder", usage="", description="WIP")
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def finder(
         self,

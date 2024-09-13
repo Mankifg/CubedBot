@@ -98,7 +98,7 @@ class userfinderCog(commands.Cog, name="userfinder command"):
         await self.bot.wait_until_ready()
 
    
-    @discord.command(name="userfinder", usage="(member:mention) OR (wca id:str)", description="Displays wca profile of user/wca id")
+    @discord.command(name="userfinder", usage="(nationality) [start date: YYYY-MM-DD] [end date: YYYY-MM-DD]", description="Given nationality and time frame finds competitors who are competing")
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def userFinder(
         self, ctx: discord.ApplicationContext,

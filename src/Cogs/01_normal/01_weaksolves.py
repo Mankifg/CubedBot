@@ -17,7 +17,7 @@ class weeksolvesCog(commands.Cog, name="weeksolves command"):
     @discord.command(
         name="weeksolves",
         usage="[member:mention]",
-        description="Weeky resutls for choosen user",
+        description="Weeky results for choosen user",
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def weeksolves(self, ctx, member: discord.Member = None):

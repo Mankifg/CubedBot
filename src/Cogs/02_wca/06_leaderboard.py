@@ -16,7 +16,7 @@ class leaderboardCog(commands.Cog, name="leaderboard command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
 
-    @discord.command(name="leaderboard", usage="(member:mention) OR (wca id:str)", description="Displays wca profile of user/wca id")
+    @discord.command(name="leaderboard", usage="wip", description="wip")
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def leaderboard(self, ctx, options1):
 
