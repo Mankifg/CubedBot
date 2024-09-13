@@ -99,7 +99,7 @@ Uporaba: /userfinder (regija) [začetek] [konec]
 * [Scrambles](#scrambles)
 * [Modforce](#modforce)
 * [Newweek](#newweek)
-* 
+
 -----
 ### Scrambles
 > Generiranje tedenskih mešalnih algoritmov / Generates weeky scrambles
