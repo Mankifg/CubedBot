@@ -55,7 +55,7 @@ SHORT_DICTIONARY = {
     "sq1": "Square-1",
     "234": "2+3+4 Relay",
     #* separator --------------------------------
-    "333ft":"3x3 Feat"
+    "333ft":"3x3 Feet"
 }
 
 AO5 = [
