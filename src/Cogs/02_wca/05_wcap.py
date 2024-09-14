@@ -12,6 +12,15 @@ USER_ENDPOINT = "https://raw.githubusercontent.com/robiningelbrecht/wca-rest-api
 def max_len_in_collum(data):
     return [max(len(str(element)) for element in column) for column in zip(*data)]
 
+ARRY_FOR_WCA_ID_SORT = ["333","222","444","555","666","777","333bf","333fm","333oh","clock","minx","pyram","skewb","sq1","444bf","555bf","333mbf",]
+
+def custom_sort_key(key):
+    try:
+        return ARRY_FOR_WCA_ID_SORT.index(key)
+    except ValueError:
+        return float('inf')
+
+
 
 class wcapCog(commands.Cog, name="wcap command"):
     def __init__(self, bot: commands.bot):
@@ -80,36 +89,46 @@ class wcapCog(commands.Cog, name="wcap command"):
         
         u_data = {}
         
+        
+        
         for elem in user_data["rank"]["singles"]:
             # elem = {'eventId': event, 'best': int , 'rank': {'world': -1, 'continent': -1, 'country': -1}}
             eventId = elem["eventId"]
             best_time = elem["best"]
             rank = elem["rank"]
-                 
-            best_time = functions.readify(best_time)
+                
+            print(best_time,"with info ",eventId)  
+            
+            best_time = functions.readify(best_time,eventId)
             
             u_data.update({eventId: {"single": best_time, "singleRank": rank}})
-            
+        
+        print("aaa")            
 
         for elem in user_data["rank"]["averages"]:
             # elem = {'eventId': event, 'best': int , 'rank': {'world': -1, 'continent': -1, 'country': -1}}
             eventId = elem["eventId"]
             best_time = elem["best"]
             rank = elem["rank"]
-                       
+            
+            print(best_time,"with info ",eventId)  
             best_time = functions.readify(best_time)
+            print(best_time)
             
-            
-            u_data.update({eventId: {"single":u_data[eventId]["single"],"singleRank":u_data[eventId]["singleRank"],"avg": best_time, "avgRank": rank}})
+            u_data[eventId].update({"avg": best_time, "avgRank": rank})
             
             
         #print(u_data)
         u_data = functions.sort_weeky_data(u_data)
             
         table = []
+
+        print(u_data.keys())
+        u_data = dict(sorted(u_data.items(), key=lambda item: custom_sort_key(item[0])))
+        print(u_data.keys())
         table.append(["Event", "Single", "Average"])
         
-        
+
         for eventId in u_data:
             category_data = u_data[eventId]
             single = category_data["single"]

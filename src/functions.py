@@ -123,7 +123,7 @@ def unredify(time_str):
 def readify(centisec,eventId="333"):
     
     if eventId == "333mbf":
-        mbld = centisec
+        mbld = str(centisec)
         solved = 99 - int(mbld[0:2]) + int(mbld[7:9])
         all_cubes = 99 - int(mbld[0:2]) + 2 * int(mbld[7:9])
         c_time = int(mbld[2:7])
