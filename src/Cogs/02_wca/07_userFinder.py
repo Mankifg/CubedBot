@@ -106,6 +106,7 @@ class userfinderCog(commands.Cog, name="userfinder command"):
         start_date:str=None,
         end_date:str=None,
         ):
+        print(f"User finder ({nationality}): {start_date} - {end_date}")
         
         if not valid_time(start_date):
             start_date = dt.now()
@@ -119,7 +120,7 @@ class userfinderCog(commands.Cog, name="userfinder command"):
         elif not valid_time(end_date):
             end_date = start_date + timedelta(days=NUMBER_OF_DAYS_TO_SEARCH)
         else:
-            end_date = dt.strptime(start_date, '%Y-%m-%d')
+            end_date = dt.strptime(end_date, '%Y-%m-%d')
             
         all_competitions = wca_function.list_of_events_from(start_date, end_date)
         
