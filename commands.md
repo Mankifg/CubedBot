@@ -31,7 +31,7 @@ Format: 1.23, 12.34, 1:23.45, 12:34.56, DNF
 * `,` med časi
 * `MM:SS.ms`
 * `-1`ali `DNF` za DNF
-* +2 mora biti prištet končneumu času
+* +2 mora biti prištet končnemu času
 
 ### Weeksolves
 Poglej čase od drugih za ta teden / See times of other for this week
