@@ -24,6 +24,8 @@ def avg_of(solves, a_type):
         averge_mode = "bo3"
     elif a_type in hs.MO3:
         averge_mode = "mo3"
+    elif a_type in hs.BO1:
+        averge_mode = "bo1"
     else:
         raise SkillIssue(f"it appears that {a_type} isn't in any group")
 
@@ -33,6 +35,10 @@ def avg_of(solves, a_type):
     # ? 1. ao5
     # ? 2. bo3
     # ? 3. mo3
+    if averge_mode == "bo1":
+        return solves[0]
+    
+    
     if averge_mode == "bo3" or averge_mode == "bo5":
         solves = list(filter(lambda a: a != -1, solves))
         if len(solves) == 0:

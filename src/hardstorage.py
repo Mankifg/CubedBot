@@ -74,7 +74,7 @@ AO5 = [
 MO3 = ["666", "777","333fm"]
 
 BO3 = ["333bf", "234", "444bf"]
-
+BO1 = ["333mbf"]
 def category_attempts(cid): #catgory id
     if cid in MO3+BO3:
         return 3
