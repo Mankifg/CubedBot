@@ -305,10 +305,10 @@ def beutify(arry, event_id):
         arry = arry[0:3]
 
     for i in range(len(arry)):
-        print(arry[i], readify(arry[i]))
-        arry[i] = readify(arry[i])
+        print(arry[i], readify(arry[i]),event_id)
+        arry[i] = readify(arry[i],event_id)
 
-    r = f"{readify(avg)} | {', '.join(arry)}"
+    r = f"{readify(avg,event_id)} | {', '.join(arry)}"
 
     return r
 

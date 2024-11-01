@@ -120,7 +120,7 @@ class nrCog(commands.Cog, name="nr command"):
                     times = [x for x in times if x != -1]
 
                     q.add_field(
-                        name=f'SINGLE: ```{functions.readify(min(times))}```',
+                        name=f'SINGLE: ```{functions.readify(min(times),round_obj["competitionEvent"]["event"]["id"])}```',
                         value=f'SOLVES: {functions.beutify(times,round_obj["competitionEvent"]["event"]["id"])}',
                     )
                 
