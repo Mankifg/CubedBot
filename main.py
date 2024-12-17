@@ -1,13 +1,12 @@
 from pathlib import Path
 from itertools import cycle
-from discord.ext import commands, tasks
 import json
 import os
 from itertools import cycle
 from dotenv import load_dotenv
 import time
 import discord
-from discord.ext import commands
+from discord.ext import tasks, commands
 
 start_time = time.time()
 
@@ -26,11 +25,6 @@ status = cycle(
 @tasks.loop(seconds=10)
 async def status_swap():
     await bot.change_presence(activity=discord.Game(next(status)))
-
-class Greetings(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
-        self._last_member = None
 
 
 intents = discord.Intents.default()

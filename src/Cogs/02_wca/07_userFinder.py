@@ -13,9 +13,30 @@ from src.hardstorage import *
 
 import src.wca_function as wca_function
 
-COMP_ULR = "https://www.worldcubeassociation.org/competitions/{}/registrations"
+COMP_URL = "https://www.worldcubeassociation.org/competitions/{}"
+REGISTERED_URL = "https://www.worldcubeassociation.org/api/v1/registrations/{}"
 NUMBER_OF_DAYS_TO_SEARCH = 7
 CHANNEL_ANNOUCE = "957586553536921620"
+URL_FOR_REGIONS = "https://raw.githubusercontent.com/robiningelbrecht/wca-rest-api/master/api/countries.json"
+
+data = requests.get(URL_FOR_REGIONS).json()["items"]
+REGIONS = []
+ISO2 = []
+for elem in data:
+    ISO2.append(elem['iso2Code'].lower())
+    REGIONS.append(f"{elem['iso2Code'].lower()} - {elem['name']}")
+
+print(ISO2)
+
+def convert_to_abbreviated_form(full_name):
+    print(full_name)
+    name_parts = full_name.strip().split()
+    if len(name_parts) < 2:
+        raise ValueError("Full name must include at least a first name and a surname.")
+    first_names_and_middle = name_parts[:-1]
+    last_surname = name_parts[-1]
+    abbreviated_names = [name[0].upper() + '.' for name in first_names_and_middle]
+    return " ".join(abbreviated_names + [last_surname.capitalize()])
 
 
 def max_len_in_collum(data):
@@ -24,7 +45,6 @@ def max_len_in_collum(data):
 def valid_time(time):
     if time is None:
         return False
-    
     try:
         dt.strptime(time, '%Y-%m-%d')
     except ValueError:
@@ -37,7 +57,8 @@ class userfinderCog(commands.Cog, name="userfinder command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
         self.userf.start()
-        
+    
+     
         
     @tasks.loop(seconds=58*60)
     async def userf(self):
@@ -91,22 +112,31 @@ class userfinderCog(commands.Cog, name="userfinder command"):
             
             await asyncio.sleep(10*60)
 
-                
-                
     @userf.before_loop
     async def before_send_message(self):
-        await self.bot.wait_until_ready()
-
-   
+        await self.bot.wait_until_ready() 
+    
+    async def get_regions(ctx: discord.AutocompleteContext):
+        return REGIONS        
+    
     @discord.command(name="userfinder", usage="(nationality) [start date: YYYY-MM-DD] [end date: YYYY-MM-DD]", description="Given nationality and time frame finds competitors who are competing")
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def userFinder(
         self, ctx: discord.ApplicationContext,
-        nationality:str,
+        nationality: discord.Option(str, autocomplete=discord.utils.basic_autocomplete(get_regions)), # type: ignore
+        #   test: discord.Option(Attachment), # type: ignore
         start_date:str=None,
         end_date:str=None,
         ):
-        print(f"User finder ({nationality}): {start_date} - {end_date}")
+        
+        nat = nationality.split("-")[0].strip()
+        if nat not in ISO2:
+            print(nat)
+            error = discord.Embed(title="Region should be picked from one of the provided ones",
+                                  description="Izbrati je potrebo eno izmed regij iz seznama.",
+                                  color=discord.Colour.red())
+            await ctx.respond(embed=error)
+            return
         
         if not valid_time(start_date):
             start_date = dt.now()
@@ -127,38 +157,44 @@ class userfinderCog(commands.Cog, name="userfinder command"):
         print(len(all_competitions),all_competitions)
         
         q = discord.Embed(title=f"Iskalec tekmovanj")
-        q.add_field(name="Časovno območje",
+        q.add_field(name="Obdobje",
                     value=f"<t:{int(start_date.timestamp())}:D> - <t:{int(end_date.timestamp())}:D>")
         
         first_send = await ctx.send(embed=q)
-        attending = ""
-        
+
         s_time = time.time()
-        for comp in all_competitions:
-            c = wca_function.competitors_in_comp(comp,nationality.lower())
-            if c > 0:
-                print(comp)
-                
-                if c == 1:
-                    apnd = f"{c} tekmovalec"
-                elif c == 2:
-                    apnd = f"{c} tekmovalca"
-                elif c in [3,4]:
-                    apnd = f"{c} tekmovalci"
-                else:
-                    apnd = f"{c} tekmovalcev"
-                
-                good,comp_data = wca_function.get_comp_data(comp)
-                   
-                name = comp_data["name"]
-                    
-                attending += f"[{name}](https://www.worldcubeassociation.org/competitions/{comp}/registrations)\n* {apnd}\n"
-        e_time = time.time()
-        if attending == "":
-            attending = "/"
         
-        q.add_field(name=f"Tekmovanja v izbranem obdobju, kjer so prijavljeni tekmovalci regije: {nationality.title()}",value=attending,inline=False)
-        q.add_field(name="Statistika",value=f"Skenirano: {len(all_competitions)} tekmovanj. Čas: {int(e_time-s_time)} sec")
+        atLeastOneComp = False
+        responding = ""
+        for competition_id in all_competitions:
+            print(competition_id)
+            resp = requests.get(REGISTERED_URL.format(competition_id)).json()
+            goingNames = ""
+            goingNum = 0
+            
+            for user in resp:
+                # {'user': 
+                # {'id': XXX, 'name': 'XXX', 'wca_id': 'XXXXXXXXX', 'gender': 'X', 'country_iso2': 'XX', 
+                # 'country': {'id': 'XXXXXXXX', 'name': 'XXXXXX', 'continentId': '_XXXXXXX', 'iso2': 'XX'}, 'class': 'user'}, 
+                # 'user_id': XXX, 'competing': {'event_ids': ['XXX', 'XXX', 'XXX']}}
+                iso2_code = user["user"]["country_iso2"]
+                
+                if iso2_code.lower() == nat.lower():
+                    goingNum += 1
+                    #goingNames += convert_to_abbreviated_form(user["user"]["name"])
+                    
+            if goingNum > 0:
+                atLeastOneComp = True
+                responding += f"[{competition_id}]({COMP_URL.format(competition_id)})"#\n* {goingNames}"
+                
+
+        if not atLeastOneComp:
+            responding = "Ni rezultatov."
+        
+        e_time = time.time()
+
+        q.add_field(name=f"Tekmovanja, kjer so prijavljeni tekmovalci regije: {nationality.title()}",value=responding,inline=False)
+        q.add_field(name="Statistika",value=f"Skenirano: {len(all_competitions)} tekmovanj. Čas: {int(round(e_time-s_time))} sec")
         
         await first_send.edit(embed=q)
             
