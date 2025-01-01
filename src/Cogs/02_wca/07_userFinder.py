@@ -185,7 +185,7 @@ class userfinderCog(commands.Cog, name="userfinder command"):
                     
             if goingNum > 0:
                 atLeastOneComp = True
-                responding += f"[{competition_id}]({COMP_URL.format(competition_id)})"#\n* {goingNames}"
+                responding += f"[{competition_id}]({COMP_URL.format(competition_id)})\n"#\n* {goingNames}"
                 
 
         if not atLeastOneComp:
