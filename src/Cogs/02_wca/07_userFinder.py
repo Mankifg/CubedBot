@@ -181,11 +181,15 @@ class userfinderCog(commands.Cog, name="userfinder command"):
                 
                 if iso2_code.lower() == nat.lower():
                     goingNum += 1
-                    #goingNames += convert_to_abbreviated_form(user["user"]["name"])
+                    
                     
             if goingNum > 0:
                 atLeastOneComp = True
-                responding += f"[{competition_id}]({COMP_URL.format(competition_id)})\n"#\n* {goingNames}"
+                
+                comp_data = requests.get(f"https://raw.githubusercontent.com/robiningelbrecht/wca-rest-api/master/api/competitions/{competition_id}.json").json()
+                
+                
+                responding += f"[{comp_data['name']}]({COMP_URL.format(competition_id)})\n"#\n* {goingNames}"
                 
 
         if not atLeastOneComp:
