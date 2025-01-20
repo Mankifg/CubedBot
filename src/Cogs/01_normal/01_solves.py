@@ -97,6 +97,11 @@ class MyModal(discord.ui.Modal):
 
         l_fields = len(self.children)  # len_field
 
+        '''
+        self.childer[i].label 
+         .value
+        '''
+        
         event_ids = []
         data = []
 

@@ -56,6 +56,7 @@ def valid_time(time):
 class userfinderCog(commands.Cog, name="userfinder command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
+        '''
         self.userf.start()
     
      
@@ -115,7 +116,7 @@ class userfinderCog(commands.Cog, name="userfinder command"):
     @userf.before_loop
     async def before_send_message(self):
         await self.bot.wait_until_ready() 
-    
+    '''
     async def get_regions(ctx: discord.AutocompleteContext):
         return REGIONS        
     
