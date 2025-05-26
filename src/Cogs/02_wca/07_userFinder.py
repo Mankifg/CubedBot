@@ -14,7 +14,7 @@ from src.hardstorage import *
 import src.wca_function as wca_function
 
 COMP_URL = "https://www.worldcubeassociation.org/competitions/{}"
-REGISTERED_URL = "https://www.worldcubeassociation.org/api/v1/registrations/{}"
+REGISTERED_URL = "https://www.worldcubeassociation.org/api/v1/competitions/{}/registrations"
 NUMBER_OF_DAYS_TO_SEARCH = 7
 CHANNEL_ANNOUCE = "957586553536921620"
 URL_FOR_REGIONS = "https://raw.githubusercontent.com/robiningelbrecht/wca-rest-api/master/api/countries.json"
