@@ -168,9 +168,11 @@ class userfinderCog(commands.Cog, name="userfinder command"):
         atLeastOneComp = False
         responding = ""
         for competition_id in all_competitions:
-            print(competition_id)
-            resp = requests.get(REGISTERED_URL.format(competition_id)).json()
-            goingNames = ""
+            print(competition_id,end=" ")
+            resp = requests.get(REGISTERED_URL.format(competition_id))
+            print(resp.status_code)
+            resp = resp.json() 
+            
             goingNum = 0
             
             for user in resp:

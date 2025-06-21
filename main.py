@@ -56,7 +56,8 @@ async def on_ready():
     print(
         f"Setup time: {round((setup_time-start_time),4)} s,Start time: {round((boot_time-setup_time),4)} s"
     )
-    status_swap.start()
+    if not status_swap.is_running():
+        status_swap.start()
 
 
 bot.run(token)
