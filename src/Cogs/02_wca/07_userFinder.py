@@ -202,8 +202,12 @@ class userfinderCog(commands.Cog, name="userfinder command"):
 
         q.add_field(name=f"Tekmovanja, kjer so prijavljeni tekmovalci regije: {nationality.title()}",value=responding,inline=False)
         q.add_field(name="Statistika",value=f"Skenirano: {len(all_competitions)} tekmovanj. Čas: {int(round(e_time-s_time))} sec")
-        
+        print("ready to send")
         await first_send.edit(embed=q)
+        print("send")
+        print("backup")
+        await ctx.send(embed=q)
+        print("final final")
             
     
 def setup(bot: commands.Bot):
