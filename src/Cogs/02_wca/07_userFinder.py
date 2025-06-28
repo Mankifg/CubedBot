@@ -197,7 +197,7 @@ class userfinderCog(commands.Cog, name="userfinder command"):
             except Exception as e:
                 print("nea gre")
                 print(e)       
-            time.sleep(2)
+            
 
         if not atLeastOneComp:
             responding = "Ni rezultatov."
