@@ -168,32 +168,36 @@ class userfinderCog(commands.Cog, name="userfinder command"):
         atLeastOneComp = False
         responding = ""
         for competition_id in all_competitions:
-            print(competition_id,end=" ")
-            resp = requests.get(REGISTERED_URL.format(competition_id))
-            print(resp.status_code)
-            resp = resp.json() 
-            
-            goingNum = 0
-            
-            for user in resp:
-                # {'user': 
-                # {'id': XXX, 'name': 'XXX', 'wca_id': 'XXXXXXXXX', 'gender': 'X', 'country_iso2': 'XX', 
-                # 'country': {'id': 'XXXXXXXX', 'name': 'XXXXXX', 'continentId': '_XXXXXXX', 'iso2': 'XX'}, 'class': 'user'}, 
-                # 'user_id': XXX, 'competing': {'event_ids': ['XXX', 'XXX', 'XXX']}}
-                iso2_code = user["user"]["country_iso2"]
+            print("trying:",competition_id,end=" ")
+            try:
+                resp = requests.get(REGISTERED_URL.format(competition_id))
+                print(resp.status_code)
+                resp = resp.json() 
                 
-                if iso2_code.lower() == nat.lower():
-                    goingNum += 1
+                goingNum = 0
+                
+                for user in resp:
+                    # {'user': 
+                    # {'id': XXX, 'name': 'XXX', 'wca_id': 'XXXXXXXXX', 'gender': 'X', 'country_iso2': 'XX', 
+                    # 'country': {'id': 'XXXXXXXX', 'name': 'XXXXXX', 'continentId': '_XXXXXXX', 'iso2': 'XX'}, 'class': 'user'}, 
+                    # 'user_id': XXX, 'competing': {'event_ids': ['XXX', 'XXX', 'XXX']}}
+                    iso2_code = user["user"]["country_iso2"]
+                    
+                    if iso2_code.lower() == nat.lower():
+                        goingNum += 1
+                        
+                        
+                if goingNum > 0:
+                    atLeastOneComp = True
+                    
+                    comp_data = requests.get(f"https://raw.githubusercontent.com/robiningelbrecht/wca-rest-api/master/api/competitions/{competition_id}.json").json()
                     
                     
-            if goingNum > 0:
-                atLeastOneComp = True
-                
-                comp_data = requests.get(f"https://raw.githubusercontent.com/robiningelbrecht/wca-rest-api/master/api/competitions/{competition_id}.json").json()
-                
-                
-                responding += f"[{comp_data['name']}]({COMP_URL.format(competition_id)})\n"#\n* {goingNames}"
-                
+                    responding += f"[{comp_data['name']}]({COMP_URL.format(competition_id)})\n"#\n* {goingNames}"
+            except Exception as e:
+                print("nea gre")
+                print(e)       
+            time.sleep(2)
 
         if not atLeastOneComp:
             responding = "Ni rezultatov."
