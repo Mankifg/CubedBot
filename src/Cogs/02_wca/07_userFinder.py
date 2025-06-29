@@ -169,35 +169,51 @@ class userfinderCog(commands.Cog, name="userfinder command"):
         responding = ""
         for competition_id in all_competitions:
             print("trying:",competition_id,end=" ")
+
+            is_good = False
             try:
-                resp = requests.get(REGISTERED_URL.format(competition_id))
-                print(resp.status_code)
-                resp = resp.json() 
+                resp = requests.get(REGISTERED_URL.format(competition_id),timeout=3)
+                is_good = resp.status_code == 200
+            except requests.Timeout as e:
+                print("req timeout", competition_id)
                 
-                goingNum = 0
+            while not is_good:
+                try:
+                    resp = requests.get(REGISTERED_URL.format(competition_id),timeout=3)
+                    print("inside_try",resp.status_code)
+                    is_good = resp.status_code == 200
+                except requests.Timeout as e:
+                    print("req timeout",competition_id)
+                    
+                if is_good:
+                    break
                 
-                for user in resp:
-                    # {'user': 
-                    # {'id': XXX, 'name': 'XXX', 'wca_id': 'XXXXXXXXX', 'gender': 'X', 'country_iso2': 'XX', 
-                    # 'country': {'id': 'XXXXXXXX', 'name': 'XXXXXX', 'continentId': '_XXXXXXX', 'iso2': 'XX'}, 'class': 'user'}, 
-                    # 'user_id': XXX, 'competing': {'event_ids': ['XXX', 'XXX', 'XXX']}}
-                    iso2_code = user["user"]["country_iso2"]
-                    
-                    if iso2_code.lower() == nat.lower():
-                        goingNum += 1
-                        
-                        
-                if goingNum > 0:
-                    atLeastOneComp = True
-                    
-                    comp_data = requests.get(f"https://raw.githubusercontent.com/robiningelbrecht/wca-rest-api/master/api/competitions/{competition_id}.json").json()
-                    
-                    
-                    responding += f"[{comp_data['name']}]({COMP_URL.format(competition_id)})\n"#\n* {goingNames}"
-            except Exception as e:
-                print("nea gre")
-                print(e)       
+                
+            print(resp.status_code)
+            resp = resp.json() 
             
+            at_least_one = False
+            
+            for user in resp:
+                # {'user': 
+                # {'id': XXX, 'name': 'XXX', 'wca_id': 'XXXXXXXXX', 'gender': 'X', 'country_iso2': 'XX', 
+                # 'country': {'id': 'XXXXXXXX', 'name': 'XXXXXX', 'continentId': '_XXXXXXX', 'iso2': 'XX'}, 'class': 'user'}, 
+                # 'user_id': XXX, 'competing': {'event_ids': ['XXX', 'XXX', 'XXX']}}
+                iso2_code = user["user"]["country_iso2"]
+                
+                if iso2_code.lower() == nat.lower():
+                    at_least_one = True
+                    break     
+                    
+                    
+            if at_least_one:
+                atLeastOneComp = True
+                
+                comp_data = requests.get(f"https://raw.githubusercontent.com/robiningelbrecht/wca-rest-api/master/api/competitions/{competition_id}.json").json()
+                
+                
+                responding += f"[{comp_data['name']}]({COMP_URL.format(competition_id)})\n"#\n* {goingNames}"
+        
 
         if not atLeastOneComp:
             responding = "Ni rezultatov."
@@ -209,9 +225,7 @@ class userfinderCog(commands.Cog, name="userfinder command"):
         print("ready to send")
         await first_send.edit(embed=q)
         print("send")
-        print("backup")
-        await ctx.send(embed=q)
-        print("final final")
+
             
     
 def setup(bot: commands.Bot):
