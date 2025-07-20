@@ -13,8 +13,6 @@ start_time = time.time()
 load_dotenv()
 token = os.getenv("TOKEN")
 
-unwanted_files = ["exam.txt"]
-
 status = cycle(
     [
         "Made by Mankifg",
@@ -53,6 +51,8 @@ boot_time = time.time()
 @bot.event
 async def on_ready():
     print(f"We have logged in as {bot.user}, id: {bot.user.id}")
+    with open("settings.json","r") as f:
+        print(json.load(f))
     print(
         f"Setup time: {round((setup_time-start_time),4)} s,Start time: {round((boot_time-setup_time),4)} s"
     )
