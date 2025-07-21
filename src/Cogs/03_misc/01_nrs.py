@@ -11,20 +11,50 @@ import src.db as db
 import src.hardstorage as hardstorage
 import src.functions as functions
 
+FILE_PATH = "settings.json"
+
+def get_channel(channel_type):
+    with open(FILE_PATH) as f:
+        data = json.load(f)
+
+    if channel_type == "nr":
+        return data["records"]["channel"]
+    else:   
+        return -1        
+
+def already_sent_nr(nr):
+    """
+    if nr already sent:
+        1 - already sent nr
+        
+        0 - first time seeing nr && will update
+        
+    """
+    print("chekcing nr",nr)
+    with open(FILE_PATH,"r") as f:
+        data = json.load(f)
+        print(data)
+    print(nr in data["records"]["sent"])
+    if not (nr in data["records"]["sent"]):
+        print("ins")
+        data["records"]["sent"].append(nr)
+        with open(FILE_PATH,"w") as f:
+            json.dump(data,f)
+        print("dmps")
+        print(0)
+        return 0
+    print(1)
+    return 1
+
 class nrCog(commands.Cog, name="nr command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
         self.wca_live_check.start()
 
 
-    @discord.command(name="nr", usage="", description="")
-    @commands.cooldown(1, 2, commands.BucketType.member)
-    async def nr(self, ctx,):
-        pass
-
     @tasks.loop(seconds=900)
     async def wca_live_check(self):
-
+        print("[INFO] wca live record check")
         resp = requests.post(
             url="https://live.worldcubeassociation.org/api/graphql",
             json={
@@ -69,20 +99,19 @@ class nrCog(commands.Cog, name="nr command"):
         
       
         passing = []
-        
+        print(len(resp))
         for record in resp:
             if record["result"]["person"]["country"]["iso2"] == "SI":
                 passing.append(record)
-                
-        already_submited = db.load_second_table_idd("5")
-        
-        print(already_submited)   
-                    
+        print(len(passing))
+            
         for record in passing:
-            if not record["id"] in already_submited["data"]["already_sent"]:
+            print(record["id"])
+            #print("fdfff",already_sent_nr(record["id"]))
+            if not already_sent_nr(record["id"]):
                 print("RECORD FOUND !!!", record)
                 
-                titl = f'{record["tag"]} | {record["type"]}'
+                titl = f'{record["tag"]} {record["type"]}'
                 
                 if record["tag"] == "NR":
                     q = discord.Embed(title=titl,color=discord.Colour.green())
@@ -96,8 +125,8 @@ class nrCog(commands.Cog, name="nr command"):
                 round_obj = record["result"]["round"]
                 
                 q.add_field(
-                    name=f':flag_{person["country"]["iso2"].lower()}: | {person["name"]}', # ( https://www.worldcubeassociation.org/persons/{person["wcaId"]} )',
-                    value=f'{person["wcaId"]}', 
+                    name=f':flag_{person["country"]["iso2"].lower()}: {person["name"]}', # ( https://www.worldcubeassociation.org/persons/{person["wcaId"]} )',
+                    value=f'[{person["wcaId"]}](https://www.worldcubeassociation.org/persons/{person["wcaId"]})', 
                 )
                 
                 q.add_field(
@@ -110,19 +139,32 @@ class nrCog(commands.Cog, name="nr command"):
                 for el in record["result"]["attempts"]:
                     times.append(el["result"])
                     
-                if record["type"] == "average":  
+                event_id = round_obj["competitionEvent"]["event"]["id"]
+                    
+                    
+                top_title = ""
+                if record["type"] == "average":
+                    top_title += "AVERAGE:"
+                else:
+                    top_title += "SINGLE:"
+
+                top_title += f' ```{functions.convert_to_human_frm(record["attemptResult"],event_id)}```'
+                bottom_title = f'SOLVES: `{functions.arry_to_human_frm(times,event_id)}`'
+                
+                q.add_field(name=top_title,value=bottom_title)               
+                    
+                """if record["type"] == "average":  
                                  
                     q.add_field(
-                        name=f'SOLVES:',
-                        value=f'```{functions.beutify(times,round_obj["competitionEvent"]["event"]["id"])}```',
+                        name=f'AVERAGE: ```{functions.convert_to_human_frm(functions.avg_of(times,event_id))}```',
+                        value=f'SOLVES: `{functions.arry_to_human_frm(times,event_id)}`',
                     )
                 else:
-                    times = [x for x in times if x != -1]
-
                     q.add_field(
-                        name=f'SINGLE: ```{functions.readify(min(times),round_obj["competitionEvent"]["event"]["id"])}```',
-                        value=f'SOLVES: {functions.beutify(times,round_obj["competitionEvent"]["event"]["id"])}',
+                        name=f'SINGLE: ```{functions.convert_to_human_frm(record["attemptResult"],event_id)}```',
+                        value=f'SOLVES: `{functions.arry_to_human_frm(times,event_id)}`',
                     )
+                """
                 
                 if record["tag"] == "NR":
                     q.set_thumbnail(url="https://raw.githubusercontent.com/JackMaddigan/images/main/nr.png")
@@ -133,14 +175,15 @@ class nrCog(commands.Cog, name="nr command"):
                 else:
                     print("[ERROR] not nr,cr or wr?")
                 
-                channel = int(already_submited["data"]["channel"])
+        
+                
+                channel = get_channel("nr")
                 ch = self.bot.get_channel(channel)
                 
                 await ch.send(embed=q)
-                print("send")
+                print("sent")
                 
-                already_submited["data"]["already_sent"].append(record["id"])
-                db.save_second_table_idd(already_submited)
+              
                 
                 
     @wca_live_check.before_loop
