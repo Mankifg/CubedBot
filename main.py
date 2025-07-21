@@ -20,7 +20,7 @@ status = cycle(
     ]
 )
 
-@tasks.loop(seconds=10)
+@tasks.loop(seconds=30)
 async def status_swap():
     await bot.change_presence(activity=discord.Game(next(status)))
 
