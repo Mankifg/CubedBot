@@ -103,7 +103,7 @@ class resultsCog(commands.Cog, name="results command"):
 
                 points_to_reward = POINTS[i]
 
-                one_line = f"{i+1}. {d_name} - **{functions.readify(avg)}** - _{points_to_reward}_"
+                one_line = f"{i+1}. {d_name} - **{functions.convert_to_human_frm(avg)}** - _{points_to_reward}_"
 
                 to_send = to_send + one_line + "\n"
 

@@ -20,8 +20,8 @@ def avg_of(solves, a_type):
 
     if a_type in hs.AO5:
         averge_mode = "ao5"
-    elif a_type in hs.BO3:
-        averge_mode = "bo3"
+    #elif a_type in hs.BO3:
+    #    averge_mode = "bo3"
     elif a_type in hs.MO3:
         averge_mode = "mo3"
     elif a_type in hs.BO1:
@@ -99,7 +99,7 @@ def avg_of(solves, a_type):
         raise SkillIssue("Invalid type")
 
 
-def unredify(time_str):
+def convert_to_centisec(time_str):
 
     try:
         time_str = time_str.lower()
@@ -108,6 +108,8 @@ def unredify(time_str):
 
     if time_str in [-1, "-1", "dnf"]:
         return -1
+    elif time_str in [-2,"-2","dns"]:
+        return -2
     
     try:
         if ':' in time_str:
@@ -126,14 +128,14 @@ def unredify(time_str):
     return int(total_centiseconds)
 
 
-def readify(centisec,eventId="333"):
+def convert_to_human_frm(centisec,eventId="333"):
     
     if eventId == "333mbf":
         mbld = str(centisec)
         solved = 99 - int(mbld[0:2]) + int(mbld[7:9])
         all_cubes = 99 - int(mbld[0:2]) + 2 * int(mbld[7:9])
         c_time = int(mbld[2:7])
-        c_time = functions.readify(c_time*100)
+        c_time = functions.convert_to_human_frm(c_time*100)
         mbld = f"{solved}/{all_cubes} {c_time}"
         
         return mbld
@@ -168,7 +170,7 @@ def db_times_to_user_format(array_of_times):
     if array_of_times is None:
         return ""
 
-    formatted_times = [readify(time) for time in array_of_times]
+    formatted_times = [convert_to_human_frm(time) for time in array_of_times]
 
     return ",".join(formatted_times)
 
@@ -178,8 +180,8 @@ def parse_times(times, event_id):
     
     if event_id in hs.AO5:
         averge_mode = "ao5"
-    elif event_id in hs.BO3:
-        averge_mode = "bo3"
+    #elif event_id in hs.BO3:
+    #    averge_mode = "bo3"
     elif event_id in hs.MO3:
         averge_mode = "mo3"
     else:
@@ -212,7 +214,7 @@ def parse_times(times, event_id):
     print("parsed times", t)
 
     for i in range(len(t)):
-        t[i] = unredify(t[i])
+        t[i] = convert_to_centisec(t[i])
 
     print(t)
     return t
@@ -294,21 +296,21 @@ print(list1,list2,merged_dict)
 return merged_dict"""
 
 
-def beutify(arry, event_id):
+def arry_to_human_frm(arry, event_id):
 
     print(f"Readify arry of solves: {arry}")
 
     # ? [10, 20, 30, 40, 50] 5x time in centisec
 
     avg = avg_of(arry[:], event_id)
-    if event_id in hs.BO3 or event_id in hs.MO3:
+    if event_id in hs.MO3: #or event_id in hs.BO3
         arry = arry[0:3]
 
     for i in range(len(arry)):
-        print(arry[i], readify(arry[i]),event_id)
-        arry[i] = readify(arry[i],event_id)
+        print(arry[i], convert_to_human_frm(arry[i]),event_id)
+        arry[i] = convert_to_human_frm(arry[i],event_id)
 
-    r = f"{readify(avg,event_id)} | {', '.join(arry)}"
+    r = f"{convert_to_human_frm(avg,event_id)} | {', '.join(arry)}"
 
     return r
 

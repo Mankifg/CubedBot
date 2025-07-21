@@ -202,7 +202,7 @@ class MyModal(discord.ui.Modal):
 
                 q.add_field(
                     name=f"Disciplina: **{DICTIONARY.get(elem['id'])}**, id: {elem['id']}",
-                    value=f"```{functions.beutify(elem['data'],elem['id'])}```",
+                    value=f"```{functions.arry_to_human_frm(elem['data'],elem['id'])}```",
                     inline=False,
                 )
 

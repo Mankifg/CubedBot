@@ -99,7 +99,7 @@ class wcapCog(commands.Cog, name="wcap command"):
                 
             print(best_time,"with info ",eventId)  
             
-            best_time = functions.readify(best_time,eventId)
+            best_time = functions.convert_to_human_frm(best_time,eventId)
             
             u_data.update({eventId: {"single": best_time, "singleRank": rank}})
         
@@ -112,7 +112,7 @@ class wcapCog(commands.Cog, name="wcap command"):
             rank = elem["rank"]
             
             print(best_time,"with info ",eventId)  
-            best_time = functions.readify(best_time)
+            best_time = functions.convert_to_human_frm(best_time)
             print(best_time)
             
             u_data[eventId].update({"avg": best_time, "avgRank": rank})

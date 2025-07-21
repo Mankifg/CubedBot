@@ -24,7 +24,7 @@ from pyTwistyScrambler import (
 )
 
 def category_attempts(cid): #catgory id
-    if cid in MO3+BO3:
+    if cid in MO3:
         return 3
     else:
         return 5
