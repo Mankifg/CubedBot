@@ -33,14 +33,13 @@ def already_sent_nr(nr):
     print("chekcing nr",nr)
     with open(FILE_PATH,"r") as f:
         data = json.load(f)
-        print(data)
     print(nr in data["records"]["sent"])
     if not (nr in data["records"]["sent"]):
         print("ins")
         data["records"]["sent"].append(nr)
         with open(FILE_PATH,"w") as f:
             json.dump(data,f)
-        print("dmps")
+
         print(0)
         return 0
     print(1)
