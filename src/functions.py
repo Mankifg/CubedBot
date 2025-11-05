@@ -141,7 +141,7 @@ def convert_to_human_frm(centisec,eventId="333"):
         return mbld
     
     elif eventId == "333fm":
-        return centisec
+        return str(centisec)
     
     if centisec == -1:
         return "DNF"
