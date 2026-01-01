@@ -26,7 +26,7 @@ class newweekCog(commands.Cog, name="newweek command"):
         description="MOD: Changes to next week, because we can't trust calendar.",
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
-    async def newweek(self, ctx, week:str=None):
+    async def newweek(self, ctx, week:str=""):
         
         role_ids = [role.id for role in ctx.author.roles]
         passed = functions.any_object_same(role_ids,mod_roles)

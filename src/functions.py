@@ -122,10 +122,11 @@ def convert_to_centisec(time_str):
                 total_centiseconds = (int(minutes) * 60 + float(seconds)) * 100
         else:
             total_centiseconds = float(time_str) * 100
+        return int(total_centiseconds)
+            
     except:
         print(f"[ERROR] Parsing time went wrong: {time_str}")
     
-    return int(total_centiseconds)
 
 
 def convert_to_human_frm(centisec,eventId="333"):
