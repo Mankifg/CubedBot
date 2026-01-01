@@ -17,7 +17,7 @@ class MyView(discord.ui.View):
         super().__init__()
         self.id = int(idd)
 
-    @discord.ui.button(label="Glavne discipline", row=0, style=discord.ButtonStyle.primary)
+    @discord.ui.button(label="Discipline", row=0, style=discord.ButtonStyle.primary)
     async def button1(
         self, select: discord.ui.Select, interaction: discord.Interaction
     ):
@@ -26,14 +26,7 @@ class MyView(discord.ui.View):
                 MyModal(id="classic", user_id=interaction.user.id)
             )
 
-    @discord.ui.button(label="Stranske discipline", row=0, style=discord.ButtonStyle.secondary)
-    async def button2(
-        self, select: discord.ui.Select, interaction: discord.Interaction
-    ):
-        if interaction.user.id == self.id:
-            await interaction.response.send_modal(
-                MyModal(id="special", user_id=interaction.user.id)
-            )
+   
 
 
 class MyModal(discord.ui.Modal):
@@ -53,14 +46,9 @@ class MyModal(discord.ui.Modal):
 
         used_ids = []
 
-        if id == "classic":
-            # normal catgories
-            using_ids = POPULAR_EVENT_IDS
-        elif id == "special":
-            true_week_num = functions.true_week_num()
-            using_ids = ALL_WEEKS[true_week_num]
-        else:
-            return 1
+        all_week_data = db.load_second_table_idd(1)
+        using_ids = all_week_data["data"]["current"]["events"]
+        
 
         if week_times is not None:
             actual_week_data = week_times["data"]
@@ -84,7 +72,7 @@ class MyModal(discord.ui.Modal):
 
             self.add_item(
                 discord.ui.InputText(
-                    label=f"{translated}  |{event_id}",
+                    label=f"{translated}  | {event_id}",
                     required=False,
                     placeholder="Vnesi čase / Enter times",
                     value=value_to_display,
@@ -163,6 +151,7 @@ class MyModal(discord.ui.Modal):
         # YYYY-WN week num
 
         f = False
+        x = 0
         for i in range(len(user_data["data"]["solves"])):
             if user_data["data"]["solves"][i]["week"] == c_week:
                 x = i

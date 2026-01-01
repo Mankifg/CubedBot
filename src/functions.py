@@ -230,7 +230,7 @@ def this_week():
 
 def this_week():
     week = db.load_second_table_idd(1)
-    return week["data"]["data"]
+    return week["data"]["current"]
 
 
 def find_in_array_with_id(arry, id, what):
