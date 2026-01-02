@@ -124,9 +124,9 @@ class scramblesCog(commands.Cog, name="scrambles command"):
             await ctx.respond(embed=q, ephemeral=True)
             return
 
-        true_week_num = functions.true_week_num()
-
-        using_ids = POPULAR_EVENT_IDS + ALL_WEEKS[true_week_num]
+     
+        all_week_data = db.load_second_table_idd(1)
+        using_ids = all_week_data["data"]["current"]["events"]
 
         print(using_ids)
 
@@ -136,7 +136,7 @@ class scramblesCog(commands.Cog, name="scrambles command"):
             color=0xFFFFF,
         )
 
-        using_ids_in_a_arry = [POPULAR_EVENT_IDS,ALL_WEEKS[true_week_num]]
+        using_ids_in_a_arry = [using_ids]
         
         for al_ids in using_ids_in_a_arry:
             q = discord.Embed(

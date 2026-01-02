@@ -26,6 +26,8 @@ def avg_of(solves, a_type):
         averge_mode = "mo3"
     elif a_type in hs.BO1:
         averge_mode = "bo1"
+    elif a_type in hs.BO5:
+        averge_mode = "bo5"
     else:
         raise SkillIssue(f"it appears that {a_type} isn't in any group")
 
@@ -185,12 +187,15 @@ def parse_times(times, event_id):
     #    averge_mode = "bo3"
     elif event_id in hs.MO3:
         averge_mode = "mo3"
+    elif event_id in hs.BO5:
+        averge_mode = "bo1+5"
     else:
         raise SkillIssue(f"it appears that {event_id} isn't in any group")
     
     times = times.lower()
     times = times.replace(" ", "")
 
+    # is this neaded?
     if len(times) in [0, 1]:
         return -1
 
@@ -230,7 +235,7 @@ def this_week():
 
 def this_week():
     week = db.load_second_table_idd(1)
-    return week["data"]["current"]
+    return week["data"]["current"]["name"]
 
 
 def find_in_array_with_id(arry, id, what):

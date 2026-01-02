@@ -71,8 +71,9 @@ AO5 = [
     "sq1",
 ]
 
-MO3 = ["666", "777","333fm","333bf","444bf","555bf"]
+MO3 = ["666", "777","333fm","444bf","555bf"]
 BO1 = ["333mbf"]
+BO5 = ["333bf"]
 def category_attempts(cid): #catgory id
     if cid in MO3:
         return 3

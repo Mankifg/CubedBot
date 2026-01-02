@@ -95,7 +95,7 @@ class MyModal(discord.ui.Modal):
 
         for i in range(l_fields):
             l = self.children[i].label
-            l = l.split("|")[1]
+            l = l.split("|")[1].strip()
             d = self.children[i].value
             dat = functions.parse_times(d, l)
             if not dat in [-1, "dnf"]:
