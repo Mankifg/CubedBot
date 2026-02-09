@@ -54,6 +54,8 @@ class resultsCog(commands.Cog, name="results command"):
 
         final_data = {}
 
+        print("EXTRACTED")
+        
         for event_id, value in important_data.items():
 
             important_data[event_id] = functions.add_avg(important_data[event_id])
@@ -78,6 +80,8 @@ class resultsCog(commands.Cog, name="results command"):
 
         user_points = []
 
+        print("READY TO PRINT")
+        
         q = discord.Embed(
             title=f"🔵 🔵 🔵 REZULTATI {functions.this_week()} 🔵 🔵 🔵",
             color=discord.Color.blue(),
@@ -96,7 +100,7 @@ class resultsCog(commands.Cog, name="results command"):
             for i in range(len(event_data)):
                 user_data = event_data[i]
 
-                d_name = await self.bot.fetch_user(user_data["user_id"])  # display name
+                d_name = await self.bot.fetch_user(user_data["user_id"])  # type: ignore # display name
                 d_name = d_name.display_name
 
                 avg = user_data["data"][0]["avg"]

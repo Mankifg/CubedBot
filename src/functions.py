@@ -40,6 +40,14 @@ def avg_of(solves, a_type):
     if averge_mode == "bo1":
         return solves[0]
     
+    hold_solves = []
+    for sol in solves:
+        if (type(sol) == int):
+            hold_solves.append(sol)
+        else:
+            hold_solves.append(-1)
+    solves = hold_solves[:]
+    
     
     if averge_mode == "bo3" or averge_mode == "bo5":
         solves = list(filter(lambda a: a != -1, solves))
@@ -61,6 +69,7 @@ def avg_of(solves, a_type):
             #return round(sum(solves) / len(solves), 2)
             
         elif n_of_dnfs == 1:
+            print("####",solves)
             solves.sort()
 
             solves.remove(-1) # the DNF one
@@ -373,10 +382,12 @@ def extract_data_with_id_and_data(id, data):
 
 
 def add_avg(data):
+    print("ADDING AVG")
     for i in range(len(data)):
         data[i]["data"][0]["avg"] = avg_of(
             data[i]["data"][0]["data"][:], data[i]["data"][0]["id"]  #! [:]
         )
+    print("AVG ADDED")
     return data
 
 
