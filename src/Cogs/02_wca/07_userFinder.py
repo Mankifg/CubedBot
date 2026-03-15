@@ -126,7 +126,7 @@ class userfinderCog(commands.Cog, name="userfinder command"):
         self, ctx: discord.ApplicationContext,
         nationality: discord.Option(str, autocomplete=discord.utils.basic_autocomplete(get_regions)), # type: ignore
         #   test: discord.Option(Attachment), # type: ignore
-        start_date:str=None,
+        user_start_date:str=None,
         end_date:str=None,
         ):
         
@@ -139,10 +139,9 @@ class userfinderCog(commands.Cog, name="userfinder command"):
             await ctx.respond(embed=error)
             return
         
-        if not valid_time(start_date):
-            start_date = dt.now()
-        else:
-            start_date = dt.strptime(start_date, '%Y-%m-%d')
+        start_date = dt.now()
+        if valid_time(user_start_date):
+            start_date = dt.strptime(user_start_date, '%Y-%m-%d')
             
         if end_date is None:
             end_date = start_date + timedelta(days=NUMBER_OF_DAYS_TO_SEARCH)  
@@ -166,21 +165,26 @@ class userfinderCog(commands.Cog, name="userfinder command"):
         s_time = time.time()
         
         atLeastOneComp = False
-        responding = ""
+        
+        
+        send_obj = []
+        send_single = ""
+        
         for competition_id in all_competitions:
             print("trying:",competition_id,end=" ")
 
             is_good = False
+            """
             try:
                 resp = requests.get(REGISTERED_URL.format(competition_id),timeout=3)
                 is_good = resp.status_code == 200
             except requests.Timeout as e:
                 print("req timeout", competition_id)
-                
+            """    
             while not is_good:
                 try:
                     resp = requests.get(REGISTERED_URL.format(competition_id),timeout=3)
-                    print("inside_try",resp.status_code)
+                    print("trying ",resp.status_code)
                     is_good = resp.status_code == 200
                 except requests.Timeout as e:
                     print("req timeout",competition_id)
@@ -205,26 +209,43 @@ class userfinderCog(commands.Cog, name="userfinder command"):
                     at_least_one = True
                     break     
                     
-                    
+                  
             if at_least_one:
                 atLeastOneComp = True
                 
-                comp_data = requests.get(f"https://raw.githubusercontent.com/robiningelbrecht/wca-rest-api/master/api/competitions/{competition_id}.json").json()
+                #comp_data = requests.get(f"https://raw.githubusercontent.com/robiningelbrecht/wca-rest-api/master/api/competitions/{competition_id}.json").json()
                 
                 
-                responding += f"[{comp_data['name']}]({COMP_URL.format(competition_id)})\n"#\n* {goingNames}"
-        
+                to_add:str = f"* [{competition_id}]({COMP_URL.format(competition_id)})\n"
+                if (len(send_single) +len(to_add) > 1024):
+                    send_obj.append(send_single)
+                    send_single = to_add
+                else:
+                    send_single += to_add
+                    
+        if (send_single != ""):
+            send_obj.append(send_single)
 
         if not atLeastOneComp:
-            responding = "Ni rezultatov."
+            send_obj = ["Ni rezultatov."]
         
         e_time = time.time()
 
-        q.add_field(name=f"Tekmovanja, kjer so prijavljeni tekmovalci regije: {nationality.title()}",value=responding,inline=False)
+        
+        q.add_field(name=f"Tekmovanja, kjer so prijavljeni tekmovalci regije: {nationality.title()}",value=send_obj[0],inline=False)
+        
         q.add_field(name="Statistika",value=f"Skenirano: {len(all_competitions)} tekmovanj. Čas: {int(round(e_time-s_time))} sec")
         print("ready to send")
         await first_send.edit(embed=q)
         print("send")
+        
+        if (len(send_obj) > 1):
+            for i in range(1,len(send_obj)):
+                send_single = send_obj[i]
+                
+                q = discord.Embed(title=f"{i+1}. del")
+                q.add_field(name=".",value=send_single)
+                await ctx.send(embed=q)
 
             
     
