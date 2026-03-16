@@ -33,7 +33,7 @@ class annouceCog(commands.Cog, name="annouce command"):
                 month = month % 12
                 year = year + 1
             
-            data = wca_function.find_by_date(0,month,year)
+            data = await asyncio.to_thread(wca_function.find_by_date, 0, month, year)
             
             
             if data is not None:
@@ -60,7 +60,7 @@ class annouceCog(commands.Cog, name="annouce command"):
         for comp in final_comps:
             
             comp_id = comp["id"]
-            success, data = wca_function.get_comp_data(comp_id)
+            success, data = await asyncio.to_thread(wca_function.get_comp_data, comp_id)
             
             if not success:
                 continue

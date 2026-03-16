@@ -7,12 +7,16 @@ from src.hardstorage import *
 import src.wca_function as wca_function
 import src.functions as functions
 
-USER_ENDPOINT = "https://raw.githubusercontent.com/robiningelbrecht/wca-rest-api/master/api/persons/{}.json"
-
 def max_len_in_collum(data):
     return [max(len(str(element)) for element in column) for column in zip(*data)]
 
 ARRY_FOR_WCA_ID_SORT = ["333","222","444","555","666","777","333bf","333fm","333oh","clock","minx","pyram","skewb","sq1","444bf","555bf","333mbf",]
+BLIND_LABELS = {
+    "333bf": "3BLD",
+    "444bf": "4BLD",
+    "555bf": "5BLD",
+    "333mbf": "MBLD",
+}
 
 def custom_sort_key(key):
     try:
@@ -29,6 +33,7 @@ class wcapCog(commands.Cog, name="wcap command"):
     @discord.command(name="wcap", usage="(member:mention) OR (wca id:str)", description="Displays wca profile of user/wca id")
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def wcap(self, ctx, member: discord.Member = None, user_wca_id: str = None):
+        await ctx.respond("Preparing response...", ephemeral=True)
 
         if user_wca_id is None:
             if member is None:
@@ -42,6 +47,15 @@ class wcapCog(commands.Cog, name="wcap command"):
         else:
             wca_id = user_wca_id
 
+        if not wca_id:
+            q = discord.Embed(
+                title="No WCA ID linked",
+                description="Use `/changewcaid <WCA_ID>` first, or provide `user_wca_id` in this command.",
+                color=discord.Colour.orange(),
+            )
+            await ctx.send(embed=q)
+            return
+
         wca_id_exists = wca_function.wca_id_exists(wca_id)
 
         if not wca_id_exists:
@@ -54,6 +68,14 @@ class wcapCog(commands.Cog, name="wcap command"):
             return
 
         user_data = wca_function.get_wca_data(wca_id)
+        if not user_data:
+            q = discord.Embed(
+                title="WCA profile unavailable",
+                description="Could not load this profile right now. Please try again in a moment.",
+                color=discord.Colour.red(),
+            )
+            await ctx.send(embed=q)
+            return
 
         picture_url = wca_function.get_picture_url(wca_id)
 
@@ -75,7 +97,8 @@ class wcapCog(commands.Cog, name="wcap command"):
             color=0xFFFFF
         )
         
-        q.set_image(url=picture_url)
+        if picture_url:
+            q.set_thumbnail(url=picture_url)
         #? q.set_author(name="2n2n", icon_url=picture_url) TOO small
         
         '''q.add_field(
@@ -122,35 +145,27 @@ class wcapCog(commands.Cog, name="wcap command"):
         u_data = functions.sort_weeky_data(u_data)
             
         table = []
-
         print(u_data.keys())
         u_data = dict(sorted(u_data.items(), key=lambda item: custom_sort_key(item[0])))
         print(u_data.keys())
         table.append(["Event", "Single", "Average"])
-        
 
         for eventId in u_data:
             category_data = u_data[eventId]
-            single = category_data["single"]
-            event_id_displ = SHORT_DICTIONARY.get(eventId,"/")
-            avg = category_data.get("avg","/")
-            
+            single = str(category_data["single"]).replace("\n", " ").replace("\r", " ").strip()
+            avg = str(category_data.get("avg","/")).replace("\n", " ").replace("\r", " ").strip()
+            event_id_displ = BLIND_LABELS.get(eventId, SHORT_DICTIONARY.get(eventId, "/"))
             single_line_table = [event_id_displ, single, avg]
             table.append(single_line_table)
-            
-        #print(table)
-        
+
         max_len = max_len_in_collum(table)
-        
         table.insert(1, ["-"*max_len[0],"-"*max_len[1],"-"*max_len[2]])
 
         new_table = ""
-        
         for line in table:
-            line = list(map(str,line))
-            
+            line = list(map(str, line))
             new_table = new_table + f"| {line[0].center(max_len[0])}| {line[1].center(max_len[1])} | {line[2].center(max_len[2])} |\n"
-            
+
         q.add_field(name="PRs", value=f"```\n{new_table}```", inline=False)
         
         await ctx.send(embed=q)
