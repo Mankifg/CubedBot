@@ -17,14 +17,25 @@ COMP_URL = "https://www.worldcubeassociation.org/competitions/{}"
 REGISTERED_URL = "https://www.worldcubeassociation.org/api/v1/competitions/{}/registrations"
 NUMBER_OF_DAYS_TO_SEARCH = 7
 CHANNEL_ANNOUCE = "957586553536921620"
-URL_FOR_REGIONS = "https://raw.githubusercontent.com/robiningelbrecht/wca-rest-api/master/api/countries.json"
+URL_FOR_REGIONS = "https://www.worldcubeassociation.org/api/v0/countries"
 
-data = requests.get(URL_FOR_REGIONS).json()["items"]
+raw_regions = requests.get(URL_FOR_REGIONS).json()
+if isinstance(raw_regions, dict):
+    raw_regions = raw_regions.get("items", [])
+if not isinstance(raw_regions, list):
+    raw_regions = []
+
 REGIONS = []
 ISO2 = []
-for elem in data:
-    ISO2.append(elem['iso2Code'].lower())
-    REGIONS.append(f"{elem['iso2Code'].lower()} - {elem['name']}")
+for elem in raw_regions:
+    if not isinstance(elem, dict):
+        continue
+    iso2 = elem.get("iso2Code") or elem.get("iso2")
+    name = elem.get("name")
+    if not isinstance(iso2, str) or not isinstance(name, str):
+        continue
+    ISO2.append(iso2.lower())
+    REGIONS.append(f"{iso2.lower()} - {name}")
 
 print(ISO2)
 
@@ -138,6 +149,7 @@ class userfinderCog(commands.Cog, name="userfinder command"):
                                   color=discord.Colour.red())
             await ctx.respond(embed=error)
             return
+        await ctx.respond("Preparing response...", ephemeral=True)
         
         start_date = dt.now()
         if valid_time(user_start_date):
@@ -165,6 +177,7 @@ class userfinderCog(commands.Cog, name="userfinder command"):
         s_time = time.time()
         
         atLeastOneComp = False
+        fetch_failures = 0
         
         
         send_obj = []
@@ -173,30 +186,33 @@ class userfinderCog(commands.Cog, name="userfinder command"):
         for competition_id in all_competitions:
             print("trying:",competition_id,end=" ")
 
-            is_good = False
-            """
-            try:
-                resp = requests.get(REGISTERED_URL.format(competition_id),timeout=3)
-                is_good = resp.status_code == 200
-            except requests.Timeout as e:
-                print("req timeout", competition_id)
-            """    
-            while not is_good:
+            resp = None
+            for _ in range(4):
                 try:
-                    resp = requests.get(REGISTERED_URL.format(competition_id),timeout=3)
+                    resp = await asyncio.to_thread(
+                        requests.get,
+                        REGISTERED_URL.format(competition_id),
+                        timeout=4,
+                    )
                     print("trying ",resp.status_code)
-                    is_good = resp.status_code == 200
-                except requests.Timeout as e:
+                    if resp.status_code == 200:
+                        break
+                except requests.RequestException:
                     print("req timeout",competition_id)
-                    
-                if is_good:
-                    break
+                    resp = None
                 
-                
+            if resp is None or resp.status_code != 200:
+                fetch_failures += 1
+                continue
+
             print(resp.status_code)
-            resp = resp.json() 
+            try:
+                resp = resp.json()
+            except ValueError:
+                fetch_failures += 1
+                continue
             
-            at_least_one = False
+            matching_competitors = 0
             
             for user in resp:
                 # {'user': 
@@ -206,17 +222,26 @@ class userfinderCog(commands.Cog, name="userfinder command"):
                 iso2_code = user["user"]["country_iso2"]
                 
                 if iso2_code.lower() == nat.lower():
-                    at_least_one = True
-                    break     
+                    matching_competitors += 1
                     
                   
-            if at_least_one:
+            if matching_competitors > 0:
                 atLeastOneComp = True
-                
-                #comp_data = requests.get(f"https://raw.githubusercontent.com/robiningelbrecht/wca-rest-api/master/api/competitions/{competition_id}.json").json()
-                
-                
-                to_add:str = f"* [{competition_id}]({COMP_URL.format(competition_id)})\n"
+                success, comp_data = await asyncio.to_thread(wca_function.get_comp_data, competition_id)
+                competition_name = competition_id
+                if success:
+                    competition_name = comp_data.get("name", competition_id)
+
+                if matching_competitors == 1:
+                    plural = "tekmovalec"
+                elif matching_competitors == 2:
+                    plural = "tekmovalca"
+                elif matching_competitors in [3, 4]:
+                    plural = "tekmovalci"
+                else:
+                    plural = "tekmovalcev"
+
+                to_add:str = f"* [{competition_name}]({COMP_URL.format(competition_id)})\n  • {matching_competitors} {plural}\n"
                 if (len(send_single) +len(to_add) > 1024):
                     send_obj.append(send_single)
                     send_single = to_add
@@ -234,7 +259,10 @@ class userfinderCog(commands.Cog, name="userfinder command"):
         
         q.add_field(name=f"Tekmovanja, kjer so prijavljeni tekmovalci regije: {nationality.title()}",value=send_obj[0],inline=False)
         
-        q.add_field(name="Statistika",value=f"Skenirano: {len(all_competitions)} tekmovanj. Čas: {int(round(e_time-s_time))} sec")
+        q.add_field(
+            name="Statistika",
+            value=f"Skenirano: {len(all_competitions)} tekmovanj. Čas: {int(round(e_time-s_time))} sec"
+        )
         print("ready to send")
         await first_send.edit(embed=q)
         print("send")

@@ -16,6 +16,7 @@ class compCog(commands.Cog, name="comp command"):
     @discord.command(name="comp", usage="(id)", description="Gives details to selected wca competition")
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def comp(self, ctx, id):
+        await ctx.respond("Preparing response...", ephemeral=True)
 
         success, data = wca_function.get_comp_data(id)
 

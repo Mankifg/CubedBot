@@ -1,25 +1,38 @@
 from .storage import *
+import calendar
+from datetime import date
 
 def find_by_date(dan,mesec,leto):
-    
-    base_url = f"{COMPETITIONS_DATE}{leto}"
-
-    if mesec and mesec > 0: # 
-        base_url = base_url + f"/{mesec:02}"
-        
-    if dan and dan > 0:
-        base_url = base_url + f"/{dan:02}"
-
-    base_url = base_url + ".json"
-    resp = requests.get(url=base_url)
-    
-    if resp.status_code == 200:
-        data = resp.json()["items"]
-        data = data
+    if mesec and mesec > 0:
+        if dan and dan > 0:
+            start = date(leto, mesec, dan)
+            end = start
+        else:
+            last_day = calendar.monthrange(leto, mesec)[1]
+            start = date(leto, mesec, 1)
+            end = date(leto, mesec, last_day)
     else:
-        data = []
-        
-    print(base_url)
+        start = date(leto, 1, 1)
+        end = date(leto, 12, 31)
+
+    params = {
+        "include_cancelled": "false",
+        "sort": "start_date,end_date,name",
+        "start": start.isoformat(),
+        "end": end.isoformat(),
+        "page": 1,
+    }
+
+    data = []
+    while True:
+        resp = requests.get(url=COMPETITION_INDEX_API, params=params)
+        if resp.status_code != 200:
+            break
+        page_data = resp.json()
+        if not isinstance(page_data, list) or not page_data:
+            break
+        data.extend(page_data)
+        params["page"] += 1
 
     return data
 
@@ -35,10 +48,17 @@ def filter_by_distance(comps):
     
     filtered_comp = []
     for competitionn in comps:
-        
-        coords = competitionn.get("venue")
-        latlot = coords.get("coordinates")
-        lat,lon = latlot["latitude"],latlot["longitude"]
+        lat = competitionn.get("latitude_degrees")
+        lon = competitionn.get("longitude_degrees")
+        if lat is None or lon is None:
+            coords = competitionn.get("venue")
+            if isinstance(coords, dict):
+                latlot = coords.get("coordinates")
+                if isinstance(latlot, dict):
+                    lat = latlot.get("latitude")
+                    lon = latlot.get("longitude")
+        if lat is None or lon is None:
+            continue
         
         if distance_suitable(lat,lon):
             filtered_comp.append(competitionn)
