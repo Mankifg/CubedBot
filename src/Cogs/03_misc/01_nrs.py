@@ -75,31 +75,11 @@ def already_sent_nr(nr):
 class nrCog(commands.Cog, name="nr command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
-        self._first_startup_check_done = False
         self.wca_live_check.start()
 
 
     @tasks.loop(seconds=300)
     async def wca_live_check(self):
-        now_utc = dt.utcnow()
-        weekday = now_utc.weekday()  # 0=Mon ... 6=Sun
-        minutes = now_utc.hour * 60 + now_utc.minute
-        # Global weekend coverage:
-        # start: Wed 10:00 UTC (UTC+14 already Thu 00:00)
-        # end:   Mon 12:00 UTC (UTC-12 already Mon 00:00)
-        in_window = (
-            (weekday == 2 and minutes >= 10 * 60)  # Wed >=10:00 UTC
-            or (weekday in {3, 4, 5, 6})          # Thu-Sun UTC
-            or (weekday == 0 and minutes < 12 * 60)  # Mon <12:00 UTC
-        )
-        if not in_window and self._first_startup_check_done:
-            print(f"[INFO] NR loop skipped (outside global Thu-Sun window, utc={now_utc.isoformat(timespec='minutes')})")
-            return
-
-        if not self._first_startup_check_done:
-            print("[INFO] NR startup check: running once regardless of weekend window")
-            self._first_startup_check_done = True
-
         print("[INFO] wca live record check (SI + WR + ER)")
         resp = requests.post(
             url="https://live.worldcubeassociation.org/api/graphql",
