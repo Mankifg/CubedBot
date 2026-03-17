@@ -1,11 +1,9 @@
 import discord
 from discord.ext import commands
-import requests, json
 
 import src.db as db
 import src.hardstorage as hardstorage
 import src.wca_function as wca_function
-import src.functions as functions
 
 from datetime import datetime as dt
 
@@ -71,7 +69,7 @@ class compCog(commands.Cog, name="comp command"):
         send_msg = await ctx.send(embed=q)
         
         #? forced into this
-        channel = db.load_second_table_idd(4)["data"]["send_channel"]
+        channel = db.load_second_table_idd(5)["data"]["announcer_channel"]
         channel = int(channel)
         if ctx.channel.id == channel:
             await send_msg.add_reaction("🟢")
