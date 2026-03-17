@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands, tasks
-import requests, json
+import requests
 
 from datetime import datetime as dt
 import datetime
@@ -16,14 +16,27 @@ import src.wca_function as wca_function
 COMP_URL = "https://www.worldcubeassociation.org/competitions/{}"
 REGISTERED_URL = "https://www.worldcubeassociation.org/api/v1/competitions/{}/registrations"
 NUMBER_OF_DAYS_TO_SEARCH = 7
-CHANNEL_ANNOUCE = "957586553536921620"
 URL_FOR_REGIONS = "https://www.worldcubeassociation.org/api/v0/countries"
 
-raw_regions = requests.get(URL_FOR_REGIONS).json()
-if isinstance(raw_regions, dict):
-    raw_regions = raw_regions.get("items", [])
-if not isinstance(raw_regions, list):
-    raw_regions = []
+def _load_regions():
+    try:
+        resp = requests.get(URL_FOR_REGIONS, timeout=8)
+        resp.raise_for_status()
+        raw_regions = resp.json()
+        if isinstance(raw_regions, dict):
+            raw_regions = raw_regions.get("items", [])
+        if isinstance(raw_regions, list):
+            return raw_regions
+    except requests.RequestException as exc:
+        print(f"[WARN] regions fetch failed: {exc}; using local country fallback")
+
+    fallback = []
+    for iso2, name in getattr(wca_function, "COUNTRIES_DICT", {}).items():
+        if isinstance(iso2, str) and isinstance(name, str):
+            fallback.append({"iso2": iso2, "name": name})
+    return fallback
+
+raw_regions = _load_regions()
 
 REGIONS = []
 ISO2 = []
@@ -67,67 +80,135 @@ def valid_time(time):
 class userfinderCog(commands.Cog, name="userfinder command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
-        '''
-        self.userf.start()
-    
-     
-        
-    @tasks.loop(seconds=58*60)
-    async def userf(self):
-        if dt.now().weekday == 2 and dt.now().hour == 8: 
-            print("Sending")
-            
-            start_date = dt.now()        
-            end_date = start_date + timedelta(days=NUMBER_OF_DAYS_TO_SEARCH)  
-            all_competitions = wca_function.list_of_events_from(start_date, end_date)
-            
-            print(len(all_competitions),all_competitions)
-            
-            q = discord.Embed(title=f"Iskalec tekmovanj")
-            q.add_field(name="Časovno območje",
-                        value=f"<t:{int(start_date.timestamp())}:D> - <t:{int(end_date.timestamp())}:D>")
-            
-            
-            ch = self.bot.get_channel(957586553536921620)
-            
-            first_send = await ch.send(embed=q)
-            attending = ""
-            
-            s_time = time.time()
-            for comp in all_competitions:
-                c = wca_function.competitors_in_comp(comp,"slovenia".lower())
-                if c > 0:
-                    print(comp)
-                    
-                    if c == 1:
-                        apnd = f"{c} tekmovalec"
-                    elif c == 2:
-                        apnd = f"{c} tekmovalca"
-                    elif c in [3,4]:
-                        apnd = f"{c} tekmovalci"
-                    else:
-                        apnd = f"{c} tekmovalcev"
-                    
-                    good,comp_data = wca_function.get_comp_data(comp)
-                    
-                    name = comp_data["name"]
-                        
-                    attending += f"[{name}](https://www.worldcubeassociation.org/competitions/{comp}/registrations)\n* {apnd}\n"
-            e_time = time.time()
-            if attending == "":
-                attending = "/"
-            
-            q.add_field(name=f"Tekmovanja v izbranem obdobju, kjer so prijavljeni tekmovalci regije: {'slovenia'.title()}",value=attending,inline=False)
-            q.add_field(name="Statistika",value=f"Skenirano: {len(all_competitions)} tekmovanj. Čas: {int(e_time-s_time)} sec")
-            
-            await first_send.edit(embed=q)
-            
-            await asyncio.sleep(10*60)
+        self._last_weekly_run = None
+        self.weekly_userfinder.start()
 
-    @userf.before_loop
-    async def before_send_message(self):
-        await self.bot.wait_until_ready() 
-    '''
+    async def _build_userfinder_sections(self, nat, start_date, end_date):
+        all_competitions = wca_function.list_of_events_from(start_date, end_date)
+        print(len(all_competitions), all_competitions)
+
+        s_time = time.time()
+        atLeastOneComp = False
+        fetch_failures = 0
+        send_obj = []
+        send_single = ""
+
+        for competition_id in all_competitions:
+            print("trying:", competition_id, end=" ")
+
+            resp = None
+            for _ in range(4):
+                try:
+                    resp = await asyncio.to_thread(
+                        requests.get,
+                        REGISTERED_URL.format(competition_id),
+                        timeout=4,
+                    )
+                    print("trying ", resp.status_code)
+                    if resp.status_code == 200:
+                        break
+                except requests.RequestException:
+                    print("req timeout", competition_id)
+                    resp = None
+
+            if resp is None or resp.status_code != 200:
+                fetch_failures += 1
+                continue
+
+            print(resp.status_code)
+            try:
+                resp = resp.json()
+            except ValueError:
+                fetch_failures += 1
+                continue
+
+            matching_competitors = 0
+            for user in resp:
+                iso2_code = user["user"]["country_iso2"]
+                if iso2_code.lower() == nat.lower():
+                    matching_competitors += 1
+
+            if matching_competitors > 0:
+                atLeastOneComp = True
+                success, comp_data = await asyncio.to_thread(wca_function.get_comp_data, competition_id)
+                competition_name = competition_id
+                if success:
+                    competition_name = comp_data.get("name", competition_id)
+
+                if matching_competitors == 1:
+                    plural = "tekmovalec"
+                elif matching_competitors == 2:
+                    plural = "tekmovalca"
+                elif matching_competitors in [3, 4]:
+                    plural = "tekmovalci"
+                else:
+                    plural = "tekmovalcev"
+
+                to_add = f"* [{competition_name}]({COMP_URL.format(competition_id)})\n  • {matching_competitors} {plural}\n"
+                if len(send_single) + len(to_add) > 1024:
+                    send_obj.append(send_single)
+                    send_single = to_add
+                else:
+                    send_single += to_add
+
+        if send_single != "":
+            send_obj.append(send_single)
+        if not atLeastOneComp:
+            send_obj = ["Ni rezultatov."]
+
+        elapsed = int(round(time.time() - s_time))
+        return all_competitions, send_obj, elapsed
+
+    @tasks.loop(time=datetime.time(hour=16, minute=0, tzinfo=datetime.timezone.utc))
+    async def weekly_userfinder(self):
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        if now_utc.weekday() != 2:  # Wednesday
+            return
+
+        run_key = (now_utc.year, now_utc.isocalendar().week)
+        if self._last_weekly_run == run_key:
+            return
+
+        start_date = dt.now()
+        end_date = start_date + timedelta(days=NUMBER_OF_DAYS_TO_SEARCH)
+
+        channel = db.load_second_table_idd(7)["data"]["userfinder_channel"]
+        channel = int(channel)
+        ch = self.bot.get_channel(channel)
+        if ch is None:
+            return
+
+        q = discord.Embed(title="Iskalec tekmovanj")
+        q.add_field(
+            name="Obdobje",
+            value=f"<t:{int(start_date.timestamp())}:D> - <t:{int(end_date.timestamp())}:D>",
+        )
+        first_send = await ch.send(embed=q)
+
+        all_competitions, send_obj, elapsed = await self._build_userfinder_sections("si", start_date, end_date)
+
+        q.add_field(
+            name="Tekmovanja, kjer so prijavljeni tekmovalci regije: Si - Slovenia",
+            value=send_obj[0],
+            inline=False,
+        )
+        q.add_field(
+            name="Statistika",
+            value=f"Skenirano: {len(all_competitions)} tekmovanj. Čas: {elapsed} sec",
+        )
+        await first_send.edit(embed=q)
+
+        if len(send_obj) > 1:
+            for i in range(1, len(send_obj)):
+                q = discord.Embed(title=f"{i+1}. del")
+                q.add_field(name=".", value=send_obj[i])
+                await ch.send(embed=q)
+
+        self._last_weekly_run = run_key
+
+    @weekly_userfinder.before_loop
+    async def before_weekly_userfinder(self):
+        await self.bot.wait_until_ready()
     async def get_regions(ctx: discord.AutocompleteContext):
         return REGIONS        
     
@@ -163,10 +244,8 @@ class userfinderCog(commands.Cog, name="userfinder command"):
             end_date = start_date + timedelta(days=NUMBER_OF_DAYS_TO_SEARCH)
         else:
             end_date = dt.strptime(end_date, '%Y-%m-%d')
-            
-        all_competitions = wca_function.list_of_events_from(start_date, end_date)
-        
-        print(len(all_competitions),all_competitions)
+
+        all_competitions, send_obj, elapsed = await self._build_userfinder_sections(nat, start_date, end_date)
         
         q = discord.Embed(title=f"Iskalec tekmovanj")
         q.add_field(name="Obdobje",
@@ -174,94 +253,11 @@ class userfinderCog(commands.Cog, name="userfinder command"):
         
         first_send = await ctx.send(embed=q)
 
-        s_time = time.time()
-        
-        atLeastOneComp = False
-        fetch_failures = 0
-        
-        
-        send_obj = []
-        send_single = ""
-        
-        for competition_id in all_competitions:
-            print("trying:",competition_id,end=" ")
-
-            resp = None
-            for _ in range(4):
-                try:
-                    resp = await asyncio.to_thread(
-                        requests.get,
-                        REGISTERED_URL.format(competition_id),
-                        timeout=4,
-                    )
-                    print("trying ",resp.status_code)
-                    if resp.status_code == 200:
-                        break
-                except requests.RequestException:
-                    print("req timeout",competition_id)
-                    resp = None
-                
-            if resp is None or resp.status_code != 200:
-                fetch_failures += 1
-                continue
-
-            print(resp.status_code)
-            try:
-                resp = resp.json()
-            except ValueError:
-                fetch_failures += 1
-                continue
-            
-            matching_competitors = 0
-            
-            for user in resp:
-                # {'user': 
-                # {'id': XXX, 'name': 'XXX', 'wca_id': 'XXXXXXXXX', 'gender': 'X', 'country_iso2': 'XX', 
-                # 'country': {'id': 'XXXXXXXX', 'name': 'XXXXXX', 'continentId': '_XXXXXXX', 'iso2': 'XX'}, 'class': 'user'}, 
-                # 'user_id': XXX, 'competing': {'event_ids': ['XXX', 'XXX', 'XXX']}}
-                iso2_code = user["user"]["country_iso2"]
-                
-                if iso2_code.lower() == nat.lower():
-                    matching_competitors += 1
-                    
-                  
-            if matching_competitors > 0:
-                atLeastOneComp = True
-                success, comp_data = await asyncio.to_thread(wca_function.get_comp_data, competition_id)
-                competition_name = competition_id
-                if success:
-                    competition_name = comp_data.get("name", competition_id)
-
-                if matching_competitors == 1:
-                    plural = "tekmovalec"
-                elif matching_competitors == 2:
-                    plural = "tekmovalca"
-                elif matching_competitors in [3, 4]:
-                    plural = "tekmovalci"
-                else:
-                    plural = "tekmovalcev"
-
-                to_add:str = f"* [{competition_name}]({COMP_URL.format(competition_id)})\n  • {matching_competitors} {plural}\n"
-                if (len(send_single) +len(to_add) > 1024):
-                    send_obj.append(send_single)
-                    send_single = to_add
-                else:
-                    send_single += to_add
-                    
-        if (send_single != ""):
-            send_obj.append(send_single)
-
-        if not atLeastOneComp:
-            send_obj = ["Ni rezultatov."]
-        
-        e_time = time.time()
-
-        
         q.add_field(name=f"Tekmovanja, kjer so prijavljeni tekmovalci regije: {nationality.title()}",value=send_obj[0],inline=False)
         
         q.add_field(
             name="Statistika",
-            value=f"Skenirano: {len(all_competitions)} tekmovanj. Čas: {int(round(e_time-s_time))} sec"
+            value=f"Skenirano: {len(all_competitions)} tekmovanj. Čas: {elapsed} sec"
         )
         print("ready to send")
         await first_send.edit(embed=q)

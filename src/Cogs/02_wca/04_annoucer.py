@@ -1,6 +1,5 @@
 import discord
 from discord.ext import commands
-import requests, json
 
 from discord.ext import tasks
 import asyncio
@@ -41,18 +40,28 @@ class annouceCog(commands.Cog, name="annouce command"):
             
         distanced_comps = wca_function.filter_by_distance(all_comps)
         
-        already_printed_comps = db.load_second_table_idd(3)
+        dedupe_row = db.load_second_table_idd(6)
+        if not isinstance(dedupe_row.get("data"), dict):
+            dedupe_row["data"] = {}
+
+        already_printed_comps = dedupe_row.get("data", {}).get("announcer_dedupe")
+        if not isinstance(already_printed_comps, list):
+            already_printed_comps = []
+            dedupe_row["data"]["announcer_dedupe"] = already_printed_comps
         
-        channel = db.load_second_table_idd(4)["data"]["send_channel"]
+        channel = db.load_second_table_idd(5)["data"]["announcer_channel"]
         channel = int(channel)
         ch = self.bot.get_channel(channel)
+        if ch is None:
+            print(f"[ERROR] announcer_channel not found: {channel}")
+            return
         
         final_comps = []
         
         for comp in distanced_comps:
             comp_id = comp["id"]
             
-            if not comp_id in already_printed_comps["data"]["comps"]:
+            if not comp_id in already_printed_comps:
                 final_comps.append(comp)
                 
         
@@ -118,11 +127,11 @@ class annouceCog(commands.Cog, name="annouce command"):
         
         
         for comp_id in send:
-            if not comp_id in already_printed_comps["data"]["comps"]:
-                already_printed_comps["data"]["comps"].append(comp_id)
+            if not comp_id in already_printed_comps:
+                already_printed_comps.append(comp_id)
                 
         
-        db.save_second_table_idd(already_printed_comps)
+        db.save_second_table_idd(dedupe_row)
     
     @check.before_loop
     async def before_send_message(self):

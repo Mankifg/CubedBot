@@ -1,26 +1,48 @@
 import discord
 from discord.ext import commands
-import requests, json
+import requests
 
 from discord.ext import tasks
-import asyncio
 from datetime import datetime as dt
 
 import src.wca_function as wca_function
 import src.db as db
-import src.hardstorage as hardstorage
 import src.functions as functions
 
-FILE_PATH = "settings.json"
+# Static WCA Europe ISO2 list (sourced from /api/v0/countries on 2026-03-17).
+EUROPEAN_ISO2 = {
+    "AD","AL","AM","AT","AZ","BA","BE","BG","BY","CH","CY","CZ","DE","DK","EE","ES","FI","FR","GB","GE","GR","HR","HU","IE","IL","IS","IT","LI","LT","LU","LV","MC","MD","ME","MK","MT","NL","NO","PL","PT","RO","RS","RU","SE","SI","SK","SM","TR","UA","VA","XE","XK",
+}
+MEAN_EVENT_IDS = {"444bf", "555bf", "333fm", "666", "777"}
 
-def get_channel(channel_type):
-    with open(FILE_PATH) as f:
-        data = json.load(f)
+def should_post_record(record):
+    tag = str(record.get("tag", "")).upper()
+    person = record.get("result", {}).get("person", {})
+    country_iso2 = str(person.get("country", {}).get("iso2", "")).upper()
+    if country_iso2 == "SI" or tag == "WR":
+        return True
+    if tag == "CR":
+        return country_iso2 in EUROPEAN_ISO2
+    return False
 
-    if channel_type == "nr":
-        return data["records"]["channel"]
-    else:   
-        return -1        
+def display_tag(record):
+    tag = str(record.get("tag", "")).upper()
+    country_iso2 = str(record.get("result", {}).get("person", {}).get("country", {}).get("iso2", "")).upper()
+    if tag == "CR" and country_iso2 in EUROPEAN_ISO2:
+        return "ER"
+    return tag
+
+def display_record_type(record_type, event_id):
+    if record_type == "average" and event_id in MEAN_EVENT_IDS:
+        return "mean"
+    return record_type
+
+def load_nr_row():
+    return db.load_second_table_idd(4)
+
+def get_nr_channel():
+    row = db.load_second_table_idd(3)
+    return int(row["data"]["records_channel"])
 
 def already_sent_nr(nr):
     """
@@ -31,14 +53,19 @@ def already_sent_nr(nr):
         
     """
     print("chekcing nr",nr)
-    with open(FILE_PATH,"r") as f:
-        data = json.load(f)
-    print(nr in data["records"]["sent"])
-    if not (nr in data["records"]["sent"]):
+    row = load_nr_row()
+    if not isinstance(row.get("data"), dict):
+        row["data"] = {}
+    already_sent = row.get("data", {}).get("records_dedupe")
+    if not isinstance(already_sent, list):
+        already_sent = []
+        row["data"]["records_dedupe"] = already_sent
+
+    print(nr in already_sent)
+    if not (nr in already_sent):
         print("ins")
-        data["records"]["sent"].append(nr)
-        with open(FILE_PATH,"w") as f:
-            json.dump(data,f)
+        already_sent.append(nr)
+        db.save_second_table_idd(row)
 
         print(0)
         return 0
@@ -48,12 +75,32 @@ def already_sent_nr(nr):
 class nrCog(commands.Cog, name="nr command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
+        self._first_startup_check_done = False
         self.wca_live_check.start()
 
 
-    @tasks.loop(seconds=900)
+    @tasks.loop(seconds=300)
     async def wca_live_check(self):
-        print("[INFO] wca live record check")
+        now_utc = dt.utcnow()
+        weekday = now_utc.weekday()  # 0=Mon ... 6=Sun
+        minutes = now_utc.hour * 60 + now_utc.minute
+        # Global weekend coverage:
+        # start: Wed 10:00 UTC (UTC+14 already Thu 00:00)
+        # end:   Mon 12:00 UTC (UTC-12 already Mon 00:00)
+        in_window = (
+            (weekday == 2 and minutes >= 10 * 60)  # Wed >=10:00 UTC
+            or (weekday in {3, 4, 5, 6})          # Thu-Sun UTC
+            or (weekday == 0 and minutes < 12 * 60)  # Mon <12:00 UTC
+        )
+        if not in_window and self._first_startup_check_done:
+            print(f"[INFO] NR loop skipped (outside global Thu-Sun window, utc={now_utc.isoformat(timespec='minutes')})")
+            return
+
+        if not self._first_startup_check_done:
+            print("[INFO] NR startup check: running once regardless of weekend window")
+            self._first_startup_check_done = True
+
+        print("[INFO] wca live record check (SI + WR + ER)")
         resp = requests.post(
             url="https://live.worldcubeassociation.org/api/graphql",
             json={
@@ -100,7 +147,7 @@ class nrCog(commands.Cog, name="nr command"):
         passing = []
         print(len(resp))
         for record in resp:
-            if record["result"]["person"]["country"]["iso2"] == "SI":
+            if should_post_record(record):
                 passing.append(record)
         print(len(passing))
             
@@ -110,19 +157,20 @@ class nrCog(commands.Cog, name="nr command"):
             if not already_sent_nr(record["id"]):
                 print("RECORD FOUND !!!", record)
                 
-                titl = f'{record["tag"]} {record["type"]}'
+                show_tag = display_tag(record)
+                person = record["result"]["person"]
+                round_obj = record["result"]["round"]
+                event_id = round_obj["competitionEvent"]["event"]["id"]
+                shown_type = display_record_type(record["type"], event_id)
+                titl = f"{show_tag} {shown_type}"
                 
-                if record["tag"] == "NR":
+                if show_tag == "NR":
                     q = discord.Embed(title=titl,color=discord.Colour.green())
-                elif record["tag"] == "CR":
+                elif show_tag == "ER":
                     q = discord.Embed(title=titl,color=discord.Colour.yellow())
                 else:
                     q = discord.Embed(title=titl,color=discord.Colour.red())
                     
-                
-                person = record["result"]["person"]
-                round_obj = record["result"]["round"]
-                
                 q.add_field(
                     name=f':flag_{person["country"]["iso2"].lower()}: {person["name"]}', # ( https://www.worldcubeassociation.org/persons/{person["wcaId"]} )',
                     value=f'[{person["wcaId"]}](https://www.worldcubeassociation.org/persons/{person["wcaId"]})', 
@@ -138,19 +186,28 @@ class nrCog(commands.Cog, name="nr command"):
                 for el in record["result"]["attempts"]:
                     times.append(el["result"])
                     
-                event_id = round_obj["competitionEvent"]["event"]["id"]
-                    
-                    
-                top_title = ""
-                if record["type"] == "average":
-                    top_title += "AVERAGE:"
+                if shown_type == "mean":
+                    result_label = "MEAN"
+                elif record["type"] == "average":
+                    result_label = "AVERAGE"
                 else:
-                    top_title += "SINGLE:"
+                    result_label = "SINGLE"
 
-                top_title += f' ```{functions.convert_to_human_frm(record["attemptResult"],event_id)}```'
-                bottom_title = f'SOLVES: `{functions.arry_to_human_frm(times,event_id)}`'
-                
-                q.add_field(name=top_title,value=bottom_title)               
+                result_value = functions.convert_to_human_frm(record["attemptResult"], event_id)
+                solves_value = functions.arry_to_human_frm(times, event_id)
+                event_name = round_obj["competitionEvent"]["event"]["name"]
+                comp_name = round_obj["competitionEvent"]["competition"]["name"]
+                q.set_field_at(
+                    1,
+                    name=event_name,
+                    value=(
+                        f"{comp_name}\n"
+                        f"\n"
+                        f"**{result_label}:** `{result_value}`\n"
+                        f"SOLVES: {solves_value}"
+                    ),
+                    inline=False,
+                )
                     
                 """if record["type"] == "average":  
                                  
@@ -165,19 +222,22 @@ class nrCog(commands.Cog, name="nr command"):
                     )
                 """
                 
-                if record["tag"] == "NR":
+                if show_tag == "NR":
                     q.set_thumbnail(url="https://raw.githubusercontent.com/JackMaddigan/images/main/nr.png")
-                elif record["tag"] == "CR":
+                elif show_tag == "ER":
                     q.set_thumbnail(url="https://raw.githubusercontent.com/JackMaddigan/images/main/cr.png")
-                elif record["tag"] == "WR":
+                elif show_tag == "WR":
                     q.set_thumbnail(url="https://raw.githubusercontent.com/JackMaddigan/images/main/wr.png")
                 else:
-                    print("[ERROR] not nr,cr or wr?")
+                    print("[ERROR] not nr,er or wr?")
                 
         
                 
-                channel = get_channel("nr")
+                channel = get_nr_channel()
                 ch = self.bot.get_channel(channel)
+                if ch is None:
+                    print(f"[ERROR] records_channel not found: {channel}")
+                    continue
                 
                 await ch.send(embed=q)
                 print("sent")
