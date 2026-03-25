@@ -61,7 +61,7 @@ class compCog(commands.Cog, name="comp command"):
         q.add_field(name="WCA Delegati", value=delegates, inline=True)
         
         #*********
-        q.add_field(name="Prizorišče", value=f"{data['venue']['name']}\n{data['venue']['address']}\n{data['venue']['details']}", inline=False,)
+        q.add_field(name="Prizorišče", value=f"{data['venue']['name']}\n{data['venue']['address']}", inline=False,)
 
         if data["externalWebsite"]:
             q.add_field(name="Spletna stran", value=data["externalWebsite"], inline=False)

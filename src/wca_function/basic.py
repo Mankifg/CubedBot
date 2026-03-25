@@ -142,6 +142,10 @@ def get_comp_data(id):
         except ValueError:
             number_of_days = 1
 
+    website = payload.get("website", "")
+    if isinstance(website, str) and "worldcubeassociation.org" in website.lower():
+        website = ""
+
     out = {
         "id": payload.get("id", id),
         "name": payload.get("name", id),
@@ -160,7 +164,7 @@ def get_comp_data(id):
             "address": payload.get("venue_address", ""),
             "details": payload.get("venue_details", ""),
         },
-        "externalWebsite": payload.get("website", ""),
+        "externalWebsite": website,
     }
 
     return True,out
