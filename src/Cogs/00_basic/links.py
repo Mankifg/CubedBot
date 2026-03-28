@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 import requests, json
+from src.guild_access import ensure_primary_guild
 
 
 class linksCog(commands.Cog, name="links command"):
@@ -11,6 +12,8 @@ class linksCog(commands.Cog, name="links command"):
         name="links", usage="", description="Some links for bot"
     )
     async def links(self, ctx):
+        if not await ensure_primary_guild(ctx, self.bot):
+            return
         q = discord.Embed(title="Links", color=discord.Color.blue())
         q.add_field(
             name="Github Page",

@@ -7,6 +7,7 @@ from datetime import datetime as dt
 
 import src.db as db
 from src.hardstorage import *
+from src.guild_access import ensure_primary_guild
 
 mod_roles = db.load_second_table_idd(2) # role
 mod_roles = mod_roles["data"]
@@ -25,6 +26,8 @@ class modforceCog(commands.Cog, name="modforce command"):
     @discord.option(name="aa",description="desc",type=discord.Member,required=True)
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def modforce(self, ctx, member: discord.Member):
+        if not await ensure_primary_guild(ctx, self.bot):
+            return
         
         role_ids = [role.id for role in ctx.author.roles]
         passed = functions.any_object_same(role_ids,mod_roles)

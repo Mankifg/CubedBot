@@ -6,6 +6,7 @@ import src.functions as functions
 from datetime import datetime as dt
 
 import src.db as db
+from src.guild_access import ensure_primary_guild
 
 from src.hardstorage import *
 
@@ -21,6 +22,8 @@ class weeksolvesCog(commands.Cog, name="weeksolves command"):
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def weeksolves(self, ctx, member: discord.Member = None):
+        if not await ensure_primary_guild(ctx, self.bot):
+            return
         if member == None:
             userObj = ctx.author
         else:

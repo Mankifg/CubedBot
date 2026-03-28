@@ -4,6 +4,7 @@ import requests, json
 
 import src.db as db
 from src.hardstorage import * 
+from src.guild_access import ensure_primary_guild
 
 import src.wca_function as wca_function
 
@@ -19,6 +20,8 @@ class leaderboardCog(commands.Cog, name="leaderboard command"):
     @discord.command(name="leaderboard", usage="wip", description="wip")
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def leaderboard(self, ctx, options1):
+        if not await ensure_primary_guild(ctx, self.bot):
+            return
 
         print(1)
 

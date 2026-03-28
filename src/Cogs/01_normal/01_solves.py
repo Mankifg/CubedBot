@@ -6,6 +6,7 @@ from datetime import datetime as dt
 
 import src.db as db
 import src.functions as functions
+from src.guild_access import ensure_primary_guild
 
 from src.hardstorage import *
 
@@ -209,6 +210,8 @@ class solvesCog(commands.Cog, name="solves command"):
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def solves(self, ctx):
+        if not await ensure_primary_guild(ctx, self.bot):
+            return
         userObj = ctx.author
 
         q = discord.Embed(title="Vnesite čase", description="Enter your solves",color=0xFFFFF)

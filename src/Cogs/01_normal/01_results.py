@@ -10,6 +10,7 @@ import src.db as db
 from src.hardstorage import *
 
 import asyncio
+from src.guild_access import ensure_primary_guild
 
 mod_roles = db.load_second_table_idd(2)  # role
 mod_roles = mod_roles["data"]
@@ -25,6 +26,8 @@ class resultsCog(commands.Cog, name="results command"):
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def results(self, ctx, add_points: bool):
+        if not await ensure_primary_guild(ctx, self.bot):
+            return
 
         role_ids = [role.id for role in ctx.author.roles]
         passed = functions.any_object_same(role_ids, mod_roles)

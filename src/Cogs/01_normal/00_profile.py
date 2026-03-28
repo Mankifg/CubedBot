@@ -4,6 +4,7 @@ import requests, json
 from datetime import datetime as dt
 
 import src.db as db
+from src.guild_access import ensure_primary_guild
 
 print("profile loaded")
 
@@ -18,6 +19,8 @@ class profileCog(commands.Cog, name="profile command"):
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def profile(self, ctx, member: discord.Member = None):
+        if not await ensure_primary_guild(ctx, self.bot):
+            return
         if member == None:
             userObj = ctx.author
         else:

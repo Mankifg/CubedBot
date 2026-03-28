@@ -8,6 +8,7 @@ import src.functions as functions
 import src.db as db
 import src.hardstorage as hardstorage
 from src.hardstorage import *
+from src.guild_access import ensure_primary_guild
 
 from pyTwistyScrambler import (
     scrambler222,
@@ -111,6 +112,8 @@ class scramblesCog(commands.Cog, name="scrambles command"):
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def scrambles(self, ctx):
+        if not await ensure_primary_guild(ctx, self.bot):
+            return
 
         role_ids = [role.id for role in ctx.author.roles]
         passed = functions.any_object_same(role_ids, mod_roles)

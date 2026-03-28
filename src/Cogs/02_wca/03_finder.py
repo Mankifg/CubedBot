@@ -6,6 +6,7 @@ import src.db as db
 import src.hardstorage
 import src.wca_function as wca_function
 import src.functions as functions
+from src.guild_access import ensure_primary_guild
 
 from datetime import datetime as dt
 
@@ -39,6 +40,8 @@ class finderCog(commands.Cog, name="finder command"):
         leto: int,
         drzava,
     ):
+        if not await ensure_primary_guild(ctx, self.bot):
+            return
 
         #comps = wca_function.find_by_date(dan, mesec, leto)
 
