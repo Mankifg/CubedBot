@@ -52,6 +52,15 @@ for elem in raw_regions:
 
 print(ISO2)
 
+COUNTRY_NAMES = {}
+for elem in raw_regions:
+    if not isinstance(elem, dict):
+        continue
+    iso2 = elem.get("iso2Code") or elem.get("iso2")
+    name = elem.get("name")
+    if isinstance(iso2, str) and isinstance(name, str):
+        COUNTRY_NAMES[iso2.lower()] = name
+
 def convert_to_abbreviated_form(full_name):
     print(full_name)
     name_parts = full_name.strip().split()
@@ -76,6 +85,116 @@ def valid_time(time):
     
     return True
 
+def _sl_count_form(count):
+    last_two = count % 100
+    if last_two == 1:
+        return "one"
+    if last_two == 2:
+        return "two"
+    if last_two in (3, 4):
+        return "few"
+    return "many"
+
+
+def _number_text(language, count):
+    if count >= 10:
+        return str(count)
+    if language == "sl":
+        return {
+            1: "En",
+            2: "Dva",
+            3: "Trije",
+            4: "Štirje",
+            5: "Pet",
+            6: "Šest",
+            7: "Sedem",
+            8: "Osem",
+            9: "Devet",
+        }.get(count, str(count))
+    return {
+        1: "One",
+        2: "Two",
+        3: "Three",
+        4: "Four",
+        5: "Five",
+        6: "Six",
+        7: "Seven",
+        8: "Eight",
+        9: "Nine",
+    }.get(count, str(count))
+
+
+def _localize_competitor_label(language, count):
+    if language == "sl":
+        form = _sl_count_form(count)
+        if form == "one":
+            return "tekmovalec"
+        if form == "two":
+            return "tekmovalca"
+        if form == "few":
+            return "tekmovalci"
+        return "tekmovalcev"
+    return "competitor" if count == 1 else "competitors"
+
+
+def _localize_competitions_label(language, count):
+    if language == "sl":
+        form = _sl_count_form(count)
+        if form == "one":
+            return "tekmovanje"
+        if form == "two":
+            return "tekmovanji"
+        if form == "few":
+            return "tekmovanja"
+        return "tekmovanj"
+    return "competition" if count == 1 else "competitions"
+
+def _weekly_copy(language, country_code):
+    country_name = COUNTRY_NAMES.get(country_code.lower(), country_code.upper())
+    if language == "sl":
+        return {
+            "title": "Iskalec tekmovanj",
+            "period": "Obdobje",
+            "competitions": f"Tekmovanja, kjer so prijavljeni tekmovalci regije: {country_code.title()} - {country_name}",
+            "stats": "Statistika",
+            "stats_value": lambda competitions_count, elapsed: f"Skenirano: {_number_text('sl', competitions_count)} {_localize_competitions_label('sl', competitions_count)}. Čas: {elapsed} sec",
+            "empty": "Ni rezultatov.",
+            "part": lambda idx: f"{idx}. del",
+        }
+    return {
+        "title": "Competition Finder",
+        "period": "Period",
+        "competitions": f"Competitions with registered competitors from: {country_code.upper()} - {country_name}",
+        "stats": "Statistics",
+        "stats_value": lambda competitions_count, elapsed: f"Scanned: {_number_text('en', competitions_count)} {_localize_competitions_label('en', competitions_count)}. Time: {elapsed} sec",
+        "empty": "No results.",
+        "part": lambda idx: f"Part {idx}",
+    }
+
+def _load_weekly_targets():
+    row = db.load_second_table_idd(7)
+    data = row.get("data")
+    if not isinstance(data, dict):
+        return []
+
+    if isinstance(data.get("userfinder_channel"), str):
+        return [{
+            "key": "si",
+            "channel": data["userfinder_channel"],
+            "country": "SI",
+            "language": "sl",
+        }]
+
+    targets = data.get("userfinder_targets")
+    if not isinstance(targets, list):
+        return []
+    return [target for target in targets if isinstance(target, dict)]
+
+
+def _build_userfinder_item(competition_name, competition_id, matching_competitors, language):
+    plural = _localize_competitor_label(language, matching_competitors)
+    return f"* [{competition_name}]({COMP_URL.format(competition_id)})\n  • {_number_text(language, matching_competitors)} {plural}\n"
+
 
 class userfinderCog(commands.Cog, name="userfinder command"):
     def __init__(self, bot: commands.bot):
@@ -83,7 +202,27 @@ class userfinderCog(commands.Cog, name="userfinder command"):
         self._last_weekly_run = None
         self.weekly_userfinder.start()
 
-    async def _build_userfinder_sections(self, nat, start_date, end_date):
+    def _resolve_manual_language(self, guild_id):
+        if guild_id is None:
+            return "sl"
+
+        for target in _load_weekly_targets():
+            channel = target.get("channel")
+            try:
+                channel = int(channel)
+            except (TypeError, ValueError):
+                continue
+
+            target_channel = self.bot.get_channel(channel)
+            if target_channel is None or target_channel.guild is None:
+                continue
+
+            if target_channel.guild.id == guild_id:
+                return str(target.get("language", "sl")).lower().strip() or "sl"
+
+        return "sl"
+
+    async def _build_userfinder_sections(self, nat, start_date, end_date, language="sl"):
         all_competitions = wca_function.list_of_events_from(start_date, end_date)
         print(len(all_competitions), all_competitions)
 
@@ -135,16 +274,12 @@ class userfinderCog(commands.Cog, name="userfinder command"):
                 if success:
                     competition_name = comp_data.get("name", competition_id)
 
-                if matching_competitors == 1:
-                    plural = "tekmovalec"
-                elif matching_competitors == 2:
-                    plural = "tekmovalca"
-                elif matching_competitors in [3, 4]:
-                    plural = "tekmovalci"
-                else:
-                    plural = "tekmovalcev"
-
-                to_add = f"* [{competition_name}]({COMP_URL.format(competition_id)})\n  • {matching_competitors} {plural}\n"
+                to_add = _build_userfinder_item(
+                    competition_name,
+                    competition_id,
+                    matching_competitors,
+                    language,
+                )
                 if len(send_single) + len(to_add) > 1024:
                     send_obj.append(send_single)
                     send_single = to_add
@@ -159,6 +294,140 @@ class userfinderCog(commands.Cog, name="userfinder command"):
         elapsed = int(round(time.time() - s_time))
         return all_competitions, send_obj, elapsed
 
+    async def _scan_weekly_targets(self, targets, start_date, end_date):
+        all_competitions = wca_function.list_of_events_from(start_date, end_date)
+        print(len(all_competitions), all_competitions)
+
+        target_meta = {}
+        for target in targets:
+            target_key = str(target.get("key", "")).strip()
+            country = str(target.get("country", "")).lower().strip()
+            language = str(target.get("language", "en")).lower().strip() or "en"
+            if not target_key or not country:
+                continue
+            target_meta[target_key] = {
+                "country": country,
+                "language": language,
+                "items": [],
+            }
+
+        s_time = time.time()
+        comp_name_cache = {}
+
+        for competition_id in all_competitions:
+            print("trying:", competition_id, end=" ")
+
+            resp = None
+            for _ in range(4):
+                try:
+                    resp = await asyncio.to_thread(
+                        requests.get,
+                        REGISTERED_URL.format(competition_id),
+                        timeout=4,
+                    )
+                    print("trying ", resp.status_code)
+                    if resp.status_code == 200:
+                        break
+                except requests.RequestException:
+                    print("req timeout", competition_id)
+                    resp = None
+
+            if resp is None or resp.status_code != 200:
+                continue
+
+            try:
+                registrations = resp.json()
+            except ValueError:
+                continue
+
+            counts = {key: 0 for key in target_meta.keys()}
+            for user in registrations:
+                iso2_code = str(user["user"]["country_iso2"]).lower()
+                for target_key, meta in target_meta.items():
+                    if iso2_code == meta["country"]:
+                        counts[target_key] += 1
+
+            matched_keys = [key for key, value in counts.items() if value > 0]
+            if not matched_keys:
+                continue
+
+            if competition_id not in comp_name_cache:
+                success, comp_data = await asyncio.to_thread(wca_function.get_comp_data, competition_id)
+                comp_name_cache[competition_id] = comp_data.get("name", competition_id) if success else competition_id
+
+            competition_name = comp_name_cache[competition_id]
+            for target_key in matched_keys:
+                count = counts[target_key]
+                language = target_meta[target_key]["language"]
+                plural = _localize_competitor_label(language, count)
+                target_meta[target_key]["items"].append(
+                    f"* [{competition_name}]({COMP_URL.format(competition_id)})\n  • {count} {plural}\n"
+                )
+
+        elapsed = int(round(time.time() - s_time))
+        return all_competitions, target_meta, elapsed
+
+    def _chunk_weekly_items(self, items, empty_text):
+        send_obj = []
+        send_single = ""
+        for item in items:
+            if len(send_single) + len(item) > 1024:
+                send_obj.append(send_single)
+                send_single = item
+            else:
+                send_single += item
+        if send_single:
+            send_obj.append(send_single)
+        if not send_obj:
+            send_obj = [empty_text]
+        return send_obj
+
+    async def _send_weekly_target(self, target, all_competitions, target_meta, elapsed, start_date, end_date):
+        target_key = str(target.get("key", "")).strip()
+        if not target_key or target_key not in target_meta:
+            return
+
+        channel = target.get("channel")
+        try:
+            channel = int(channel)
+        except (TypeError, ValueError):
+            print(f"[ERROR] invalid userfinder target channel for {target_key}: {channel}")
+            return
+
+        ch = self.bot.get_channel(channel)
+        if ch is None:
+            print(f"[ERROR] userfinder_channel not found for {target_key}: {channel}")
+            return
+
+        country = target_meta[target_key]["country"]
+        language = target_meta[target_key]["language"]
+        copy = _weekly_copy(language, country)
+        send_obj = self._chunk_weekly_items(target_meta[target_key]["items"], copy["empty"])
+
+        q = discord.Embed(title=copy["title"])
+        q.add_field(
+            name=copy["period"],
+            value=f"<t:{int(start_date.timestamp())}:D> - <t:{int(end_date.timestamp())}:D>",
+        )
+        first_send = await ch.send(embed=q)
+
+        q.add_field(
+            name=copy["competitions"],
+            value=send_obj[0],
+            inline=False,
+        )
+        q.add_field(
+            name=copy["stats"],
+            value=copy["stats_value"](len(all_competitions), elapsed),
+        )
+        await first_send.edit(embed=q)
+
+        if len(send_obj) > 1:
+            for i in range(1, len(send_obj)):
+                part = discord.Embed(title=copy["part"](i + 1))
+                part.add_field(name=".", value=send_obj[i])
+                await ch.send(embed=part)
+
     @tasks.loop(time=datetime.time(hour=16, minute=0, tzinfo=datetime.timezone.utc))
     async def weekly_userfinder(self):
         now_utc = datetime.datetime.now(datetime.timezone.utc)
@@ -171,38 +440,14 @@ class userfinderCog(commands.Cog, name="userfinder command"):
 
         start_date = dt.now()
         end_date = start_date + timedelta(days=NUMBER_OF_DAYS_TO_SEARCH)
-
-        channel = db.load_second_table_idd(7)["data"]["userfinder_channel"]
-        channel = int(channel)
-        ch = self.bot.get_channel(channel)
-        if ch is None:
+        targets = _load_weekly_targets()
+        if not targets:
+            print("[WARN] no userfinder targets configured")
             return
 
-        q = discord.Embed(title="Iskalec tekmovanj")
-        q.add_field(
-            name="Obdobje",
-            value=f"<t:{int(start_date.timestamp())}:D> - <t:{int(end_date.timestamp())}:D>",
-        )
-        first_send = await ch.send(embed=q)
-
-        all_competitions, send_obj, elapsed = await self._build_userfinder_sections("si", start_date, end_date)
-
-        q.add_field(
-            name="Tekmovanja, kjer so prijavljeni tekmovalci regije: Si - Slovenia",
-            value=send_obj[0],
-            inline=False,
-        )
-        q.add_field(
-            name="Statistika",
-            value=f"Skenirano: {len(all_competitions)} tekmovanj. Čas: {elapsed} sec",
-        )
-        await first_send.edit(embed=q)
-
-        if len(send_obj) > 1:
-            for i in range(1, len(send_obj)):
-                q = discord.Embed(title=f"{i+1}. del")
-                q.add_field(name=".", value=send_obj[i])
-                await ch.send(embed=q)
+        all_competitions, target_meta, elapsed = await self._scan_weekly_targets(targets, start_date, end_date)
+        for target in targets:
+            await self._send_weekly_target(target, all_competitions, target_meta, elapsed, start_date, end_date)
 
         self._last_weekly_run = run_key
 
@@ -225,12 +470,19 @@ class userfinderCog(commands.Cog, name="userfinder command"):
         nat = nationality.split("-")[0].strip()
         if nat not in ISO2:
             print(nat)
-            error = discord.Embed(title="Region should be picked from one of the provided ones",
+            language = self._resolve_manual_language(ctx.guild_id)
+            if language == "sl":
+                error = discord.Embed(title="Region should be picked from one of the provided ones",
                                   description="Izbrati je potrebo eno izmed regij iz seznama.",
+                                  color=discord.Colour.red())
+            else:
+                error = discord.Embed(title="Region should be picked from one of the provided ones",
+                                  description="Please select one of the provided regions from the list.",
                                   color=discord.Colour.red())
             await ctx.respond(embed=error)
             return
-        await ctx.respond("Preparing response...", ephemeral=True)
+        language = self._resolve_manual_language(ctx.guild_id)
+        await ctx.respond("Pripravljam odgovor..." if language == "sl" else "Preparing response...", ephemeral=True)
         
         start_date = dt.now()
         if valid_time(user_start_date):
@@ -245,19 +497,20 @@ class userfinderCog(commands.Cog, name="userfinder command"):
         else:
             end_date = dt.strptime(end_date, '%Y-%m-%d')
 
-        all_competitions, send_obj, elapsed = await self._build_userfinder_sections(nat, start_date, end_date)
+        all_competitions, send_obj, elapsed = await self._build_userfinder_sections(nat, start_date, end_date, language=language)
+        copy = _weekly_copy(language, nat)
         
-        q = discord.Embed(title=f"Iskalec tekmovanj")
-        q.add_field(name="Obdobje",
+        q = discord.Embed(title=copy["title"])
+        q.add_field(name=copy["period"],
                     value=f"<t:{int(start_date.timestamp())}:D> - <t:{int(end_date.timestamp())}:D>")
         
         first_send = await ctx.send(embed=q)
 
-        q.add_field(name=f"Tekmovanja, kjer so prijavljeni tekmovalci regije: {nationality.title()}",value=send_obj[0],inline=False)
+        q.add_field(name=copy["competitions"], value=send_obj[0], inline=False)
         
         q.add_field(
-            name="Statistika",
-            value=f"Skenirano: {len(all_competitions)} tekmovanj. Čas: {elapsed} sec"
+            name=copy["stats"],
+            value=copy["stats_value"](len(all_competitions), elapsed),
         )
         print("ready to send")
         await first_send.edit(embed=q)
@@ -267,7 +520,7 @@ class userfinderCog(commands.Cog, name="userfinder command"):
             for i in range(1,len(send_obj)):
                 send_single = send_obj[i]
                 
-                q = discord.Embed(title=f"{i+1}. del")
+                q = discord.Embed(title=copy["part"](i + 1))
                 q.add_field(name=".",value=send_single)
                 await ctx.send(embed=q)
 
