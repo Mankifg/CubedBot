@@ -1,12 +1,36 @@
 import discord
 
+import src.db as db
 
-SLOVENIAN_GUILD_ID = 927949850996277298
-CROATIAN_GUILD_ID = 1160626532516106310
+
+def _load_guild_config():
+    row = db.load_second_table_idd(8)
+    data = row.get("data")
+    if isinstance(data, dict):
+        return data
+    return {}
+
+
+def primary_guild_id():
+    data = _load_guild_config()
+    guild_id = data.get("primary_guild_id")
+    try:
+        return int(guild_id)
+    except (TypeError, ValueError):
+        return None
+
+
+def croatian_guild_id():
+    data = _load_guild_config()
+    guild_id = data.get("croatian_guild_id")
+    try:
+        return int(guild_id)
+    except (TypeError, ValueError):
+        return None
 
 
 def is_primary_guild(guild_id):
-    return guild_id == SLOVENIAN_GUILD_ID
+    return guild_id == primary_guild_id()
 
 
 async def ensure_primary_guild(ctx, bot):
