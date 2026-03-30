@@ -161,7 +161,8 @@ class resultsCog(commands.Cog, name="results command"):
             user_id = user_data["user_id"]
             points = user_data["data"]["adata"]["points"]
 
-            all_clean_data.append({"user_id": user_id, "points": points})
+            if points > 0:
+                all_clean_data.append({"user_id": user_id, "points": points})
 
         q = discord.Embed(title="Skupna lestvica", color=discord.Color.yellow())
 
