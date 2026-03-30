@@ -3,7 +3,6 @@ from discord.ext import commands
 import requests, json
 
 import src.db as db
-from src.guild_access import ensure_primary_guild
 
 import src.wca_function as wca_function
 
@@ -15,8 +14,6 @@ class changewcaidCog(commands.Cog, name="changewcaid command"):
     @discord.command(name="changewcaid", usage="(wca id:str)", description="Changes your wca id assciated with your discord username")
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def changewcaid(self, ctx, user_input_wca_id = None):
-        if not await ensure_primary_guild(ctx, self.bot):
-            return
         userObj = ctx.author
 
         user_data = db.get_user_data(userObj.id)

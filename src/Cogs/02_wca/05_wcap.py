@@ -53,7 +53,7 @@ class wcapCog(commands.Cog, name="wcap command"):
                 description="Use `/changewcaid <WCA_ID>` first, or provide `user_wca_id` in this command.",
                 color=discord.Colour.orange(),
             )
-            await ctx.send(embed=q)
+            await ctx.send(embed=q, ephemeral=True)
             return
 
         wca_id_exists = wca_function.wca_id_exists(wca_id)
