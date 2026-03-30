@@ -8,7 +8,7 @@ import src.functions as functions
 import src.db as db
 from src.hardstorage import *
 import src.hardstorage
-from src.guild_access import ensure_primary_guild
+from src.guild_access import ensure_primary_guild, primary_guild_ids
 
 
 
@@ -29,12 +29,14 @@ class scrum(commands.Cog, name="scrum command"):
     @discord.command(
         name="scrum",
         usage="",
-        description="MOD: Gives scrambles for week",
+        description="MOD: Gives scrambles for week (private)",
+        guild_ids=primary_guild_ids(),
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def scrum(self, ctx):
         if not await ensure_primary_guild(ctx, self.bot):
             return
+        await ctx.respond("Preparing response...", ephemeral=True)
 
         '''role_ids = [role.id for role in ctx.author.roles]
         passed = functions.any_object_same(role_ids, mod_roles)'''
@@ -47,7 +49,7 @@ class scrum(commands.Cog, name="scrum command"):
                 description="You don't have permissions to execute this command",
                 color=discord.Colour.blue(),
             )
-            await ctx.respond(embed=q, ephemeral=True)
+            await ctx.send(embed=q, ephemeral=True)
             return
 
         true_week_num = functions.true_week_num()

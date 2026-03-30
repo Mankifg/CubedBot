@@ -6,7 +6,7 @@ from datetime import datetime as dt
 
 import src.db as db
 import src.functions as functions
-from src.guild_access import ensure_primary_guild
+from src.guild_access import ensure_primary_guild, primary_guild_ids
 
 from src.hardstorage import *
 
@@ -207,6 +207,7 @@ class solvesCog(commands.Cog, name="solves command"):
         name="solves",
         usage="",
         description="Submit solves to database",
+        guild_ids=primary_guild_ids(),
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def solves(self, ctx):

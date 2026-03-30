@@ -7,7 +7,7 @@ from datetime import datetime as dt
 import src.functions as functions
 import src.db as db
 import src.hardstorage as hs
-from src.guild_access import ensure_primary_guild
+from src.guild_access import ensure_primary_guild, primary_guild_ids
 
 
 mod_roles = db.load_second_table_idd(2) # role
@@ -26,18 +26,20 @@ class newweekCog(commands.Cog, name="newweek command"):
         name="newweek",
         usage="(week:str)",
         description="MOD: Changes to next week, because we can't trust calendar.",
+        guild_ids=primary_guild_ids(),
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def newweek(self, ctx, week:str="",discipline:str=""):
         if not await ensure_primary_guild(ctx, self.bot):
             return
+        await ctx.respond("Preparing response...", ephemeral=True)
         
         role_ids = [role.id for role in ctx.author.roles]
         passed = functions.any_object_same(role_ids,mod_roles)
         
         if not passed:
             q = discord.Embed(title="no", description="You don't have permissions to execute this command",color=discord.Colour.blue())
-            await ctx.respond(embed=q,ephemeral=True)
+            await ctx.send(embed=q,ephemeral=True)
             return
         
         database_week_entrys = db.load_second_table_idd(1)  # week

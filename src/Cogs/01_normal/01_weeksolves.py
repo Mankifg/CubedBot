@@ -6,7 +6,7 @@ import src.functions as functions
 from datetime import datetime as dt
 
 import src.db as db
-from src.guild_access import ensure_primary_guild
+from src.guild_access import ensure_primary_guild, primary_guild_ids
 
 from src.hardstorage import *
 
@@ -19,11 +19,13 @@ class weeksolvesCog(commands.Cog, name="weeksolves command"):
         name="weeksolves",
         usage="[member:mention]",
         description="Weeky results for choosen user",
+        guild_ids=primary_guild_ids(),
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def weeksolves(self, ctx, member: discord.Member = None):
         if not await ensure_primary_guild(ctx, self.bot):
             return
+        await ctx.respond("Preparing response...", ephemeral=True)
         if member == None:
             userObj = ctx.author
         else:
@@ -74,7 +76,7 @@ class weeksolvesCog(commands.Cog, name="weeksolves command"):
                     inline=False,
                 )
 
-        await ctx.respond(embed=q)
+        await ctx.send(embed=q)
 
 def setup(bot: commands.Bot):
     bot.add_cog(weeksolvesCog(bot))

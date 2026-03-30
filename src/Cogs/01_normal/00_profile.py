@@ -4,7 +4,7 @@ import requests, json
 from datetime import datetime as dt
 
 import src.db as db
-from src.guild_access import ensure_primary_guild
+from src.guild_access import ensure_primary_guild, primary_guild_ids
 
 print("profile loaded")
 
@@ -16,6 +16,7 @@ class profileCog(commands.Cog, name="profile command"):
         name="profile",
         usage="[member:mention]",
         description="Discordish profile with some other data",
+        guild_ids=primary_guild_ids(),
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def profile(self, ctx, member: discord.Member = None):
@@ -46,7 +47,7 @@ class profileCog(commands.Cog, name="profile command"):
             name="Joined", value=f"<t:{timestamp}:R>, <t:{timestamp}:f>", inline=True
         )
 
-        await ctx.respond(embed=q)
+        await ctx.respond(embed=q, ephemeral=True)
 
 
 def setup(bot: commands.Bot):

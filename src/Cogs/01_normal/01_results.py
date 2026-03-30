@@ -10,7 +10,7 @@ import src.db as db
 from src.hardstorage import *
 
 import asyncio
-from src.guild_access import ensure_primary_guild
+from src.guild_access import ensure_primary_guild, primary_guild_ids
 
 mod_roles = db.load_second_table_idd(2)  # role
 mod_roles = mod_roles["data"]
@@ -22,12 +22,13 @@ class resultsCog(commands.Cog, name="results command"):
         self.bot = bot
 
     @discord.command(
-        name="results", usage="[add_points:bool]", description="MOD: Skupni tedenski rezultati"
+        name="results", usage="[add_points:bool]", description="MOD: Skupni tedenski rezultati", guild_ids=primary_guild_ids()
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def results(self, ctx, add_points: bool):
         if not await ensure_primary_guild(ctx, self.bot):
             return
+        await ctx.respond("Preparing response...", ephemeral=True)
 
         role_ids = [role.id for role in ctx.author.roles]
         passed = functions.any_object_same(role_ids, mod_roles)
@@ -38,7 +39,7 @@ class resultsCog(commands.Cog, name="results command"):
                 description="You don't have permissions to execute this command",
                 color=discord.Colour.blue(),
             )
-            await ctx.respond(embed=q, ephemeral=True)
+            await ctx.send(embed=q, ephemeral=True)
             return
 
         data = db.get_all_data()

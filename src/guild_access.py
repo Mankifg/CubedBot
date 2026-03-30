@@ -33,6 +33,13 @@ def is_primary_guild(guild_id):
     return guild_id == primary_guild_id()
 
 
+def primary_guild_ids():
+    guild_id = primary_guild_id()
+    if guild_id is None:
+        return []
+    return [guild_id]
+
+
 async def ensure_primary_guild(ctx, bot):
     if is_primary_guild(getattr(ctx, "guild_id", None)):
         return True

@@ -11,29 +11,41 @@ class changewcaidCog(commands.Cog, name="changewcaid command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
 
-    @discord.command(name="changewcaid", usage="(wca id:str)", description="Changes your wca id assciated with your discord username")
+    @discord.command(name="changewcaid", usage="(wca id:str)", description="Link your Discord account to a WCA ID.")
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def changewcaid(self, ctx, user_input_wca_id = None):
         userObj = ctx.author
 
         user_data = db.get_user_data(userObj.id)
-
-        wca_id_exitsts = wca_function.wca_id_exists(user_input_wca_id)
+        current_wca_id = user_data.get("wca_id", "")
         
         if user_input_wca_id is None:
+            if current_wca_id:
+                q = discord.Embed(
+                    title="WCA ID linked",
+                    description=f"You currently have WCA ID `{current_wca_id}` linked.",
+                    color=discord.Colour.blue(),
+                )
+            else:
+                q = discord.Embed(
+                    title="No WCA ID linked",
+                    description="You do not have a WCA ID linked yet.",
+                    color=discord.Colour.orange(),
+                )
 
-            user_data["wca_id"] = ""
-
-            q = discord.Embed(
-                title=f"Id reseted | {userObj.name}'s profile",
-                description="",
-                color=discord.Colour.green(),
-            )
-            q.set_thumbnail(url=userObj.avatar.url)
-            q.add_field(name="WCA id", value=user_data["wca_id"])
-
-            await ctx.respond(embed=q)
+            await ctx.respond(embed=q, ephemeral=True)
             return
+
+        if isinstance(user_input_wca_id, str) and user_input_wca_id.upper() == str(current_wca_id).upper():
+            q = discord.Embed(
+                title="WCA ID already linked",
+                description=f"You already have WCA ID `{current_wca_id}` linked.",
+                color=discord.Colour.orange(),
+            )
+            await ctx.respond(embed=q, ephemeral=True)
+            return
+
+        wca_id_exitsts = wca_function.wca_id_exists(user_input_wca_id)
 
         if wca_id_exitsts:
             # found
@@ -57,7 +69,7 @@ class changewcaidCog(commands.Cog, name="changewcaid command"):
                 color=discord.Colour.red(),
             )
 
-        await ctx.respond(embed=q)
+        await ctx.respond(embed=q, ephemeral=True)
 
 
 def setup(bot: commands.Bot):

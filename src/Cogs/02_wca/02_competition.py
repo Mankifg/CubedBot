@@ -11,7 +11,7 @@ class compCog(commands.Cog, name="comp command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
 
-    @discord.command(name="comp", usage="(id)", description="Gives details to selected wca competition")
+    @discord.command(name="comp", usage="(id)", description="Show details for a WCA competition.")
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def comp(self, ctx, id):
         await ctx.respond("Preparing response...", ephemeral=True)
