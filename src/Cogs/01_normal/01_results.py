@@ -185,7 +185,7 @@ class resultsCog(commands.Cog, name="results command"):
                 u = all_clean_data[indx]
 
                 print(u)
-                await asyncio.sleep(1)
+                await asyncio.sleep(0.25)
                 user_obj = await self.bot.fetch_user(u["user_id"])  # display name
                 d_name = user_obj.display_name
 
