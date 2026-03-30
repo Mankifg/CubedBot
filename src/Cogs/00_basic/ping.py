@@ -14,6 +14,7 @@ class PingCog(commands.Cog, name="pping command"):
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def ping(self, ctx):
+        await ctx.respond("Preparing response...", ephemeral=True)
         before = time.monotonic()
         message = await ctx.send("🏓 Pong !")
         ping = (time.monotonic() - before) * 1000
