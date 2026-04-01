@@ -482,7 +482,7 @@ class userfinderCog(commands.Cog, name="userfinder command"):
             await ctx.respond(embed=error)
             return
         language = self._resolve_manual_language(ctx.guild_id)
-        await ctx.respond("Pripravljam odgovor..." if language == "sl" else "Preparing response...", ephemeral=True)
+        await ctx.defer()
         
         start_date = dt.now()
         if valid_time(user_start_date):
@@ -503,17 +503,13 @@ class userfinderCog(commands.Cog, name="userfinder command"):
         q = discord.Embed(title=copy["title"])
         q.add_field(name=copy["period"],
                     value=f"<t:{int(start_date.timestamp())}:D> - <t:{int(end_date.timestamp())}:D>")
-        
-        first_send = await ctx.send(embed=q)
-
         q.add_field(name=copy["competitions"], value=send_obj[0], inline=False)
-        
         q.add_field(
             name=copy["stats"],
             value=copy["stats_value"](len(all_competitions), elapsed),
         )
         print("ready to send")
-        await first_send.edit(embed=q)
+        await ctx.respond(embed=q)
         print("send")
         
         if (len(send_obj) > 1):

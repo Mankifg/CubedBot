@@ -14,7 +14,7 @@ class compCog(commands.Cog, name="comp command"):
     @discord.command(name="comp", usage="(id)", description="Show details for a WCA competition.")
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def comp(self, ctx, id):
-        await ctx.respond("Preparing response...", ephemeral=True)
+        await ctx.defer()
 
         success, data = wca_function.get_comp_data(id)
 
@@ -24,7 +24,7 @@ class compCog(commands.Cog, name="comp command"):
                 description=f"id: *{id}*",
                 color=discord.Colour.red(),
             )
-            await ctx.send(embed=q)
+            await ctx.respond(embed=q)
             return
 
         q = discord.Embed(
@@ -66,15 +66,16 @@ class compCog(commands.Cog, name="comp command"):
         if data["externalWebsite"]:
             q.add_field(name="Spletna stran", value=data["externalWebsite"], inline=False)
 
-        send_msg = await ctx.send(embed=q)
+        send_msg = await ctx.respond(embed=q)
         
         #? forced into this
         channel = db.load_second_table_idd(5)["data"]["announcer_channel"]
         channel = int(channel)
         if ctx.channel.id == channel:
-            await send_msg.add_reaction("🟢")
-            await send_msg.add_reaction("🟡")
-            await send_msg.add_reaction("🔴")
+            if send_msg is not None:
+                await send_msg.add_reaction("🟢")
+                await send_msg.add_reaction("🟡")
+                await send_msg.add_reaction("🔴")
 
 
 def setup(bot: commands.Bot):

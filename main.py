@@ -3,6 +3,7 @@ from itertools import cycle
 import os
 from dotenv import load_dotenv
 import time
+import subprocess
 import discord
 from discord.ext import tasks, commands
 
@@ -10,6 +11,8 @@ start_time = time.time()
 
 load_dotenv()
 token = os.getenv("TOKEN")
+
+import src.db as db
 
 status = cycle(
     [
@@ -32,6 +35,7 @@ bot = commands.Bot(
     intents=intents,
     owner_id=650756055390879757,
 )
+bot.startup_ping_sent = False
 
 setup_time = time.time()
 
@@ -46,6 +50,34 @@ if __name__ == "__main__":
 
 boot_time = time.time()
 
+
+def _current_version():
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            text=True,
+        ).strip()
+    except Exception:
+        return "unknown"
+
+
+async def send_startup_ping():
+    try:
+        row = db.load_second_table_idd(9)
+        data = row.get("data", {})
+        channel_id = data.get("startup_ping_channel")
+        if not channel_id:
+            return
+
+        channel = bot.get_channel(int(channel_id))
+        if channel is None:
+            channel = await bot.fetch_channel(int(channel_id))
+
+        version = _current_version()
+        await channel.send(f"⚙️ Build: `{version}`")
+    except Exception as exc:
+        print(f"[WARN] Startup ping failed: {exc}")
+
 @bot.event
 async def on_ready():
     print(f"We have logged in as {bot.user}, id: {bot.user.id}")
@@ -54,6 +86,9 @@ async def on_ready():
     )
     if not status_swap.is_running():
         status_swap.start()
+    if not bot.startup_ping_sent:
+        bot.startup_ping_sent = True
+        await send_startup_ping()
 
 
 bot.run(token)

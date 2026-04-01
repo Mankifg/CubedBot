@@ -33,7 +33,7 @@ class wcapCog(commands.Cog, name="wcap command"):
     @discord.command(name="wcap", usage="(member:mention) OR (wca id:str)", description="Displays wca profile of user/wca id")
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def wcap(self, ctx, member: discord.Member = None, user_wca_id: str = None):
-        await ctx.respond("Preparing response...", ephemeral=True)
+        await ctx.defer()
 
         if user_wca_id is None:
             if member is None:
@@ -53,7 +53,7 @@ class wcapCog(commands.Cog, name="wcap command"):
                 description="Use `/changewcaid <WCA_ID>` first, or provide `user_wca_id` in this command.",
                 color=discord.Colour.orange(),
             )
-            await ctx.send(embed=q, ephemeral=True)
+            await ctx.respond(embed=q)
             return
 
         wca_id_exists = wca_function.wca_id_exists(wca_id)
@@ -64,7 +64,7 @@ class wcapCog(commands.Cog, name="wcap command"):
                 description="If you think this is an error, please let us know.",
                 color=discord.Colour.red(),
             )
-            await ctx.send(embed=q)
+            await ctx.respond(embed=q)
             return
 
         user_data = wca_function.get_wca_data(wca_id)
@@ -74,7 +74,7 @@ class wcapCog(commands.Cog, name="wcap command"):
                 description="Could not load this profile right now. Please try again in a moment.",
                 color=discord.Colour.red(),
             )
-            await ctx.send(embed=q)
+            await ctx.respond(embed=q)
             return
 
         picture_url = wca_function.get_picture_url(wca_id)
@@ -168,7 +168,7 @@ class wcapCog(commands.Cog, name="wcap command"):
 
         q.add_field(name="PRs", value=f"```\n{new_table}```", inline=False)
         
-        await ctx.send(embed=q)
+        await ctx.respond(embed=q)
 
 
 def setup(bot: commands.Bot):

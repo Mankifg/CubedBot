@@ -26,11 +26,9 @@ class PingCog(commands.Cog, name="pping command"):
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def ping(self, ctx):
-        await ctx.respond("Preparing response...", ephemeral=True)
-        before = time.monotonic()
-        message = await ctx.send(f"🏓 Pong !\n⚙️ Build: `{self.version}`")
-        ping = (time.monotonic() - before) * 1000
-        await message.edit(content=f"🏓 Pong !  `{int(ping)} ms`\n⚙️ Build: `{self.version}`")
+        await ctx.defer()
+        ping = self.bot.latency * 1000
+        await ctx.respond(f"🏓 Pong !  `{int(ping)} ms`\n⚙️ Build: `{self.version}`")
 
 
 def setup(bot: commands.Bot):

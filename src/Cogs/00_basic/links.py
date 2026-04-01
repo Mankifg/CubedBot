@@ -14,7 +14,7 @@ class linksCog(commands.Cog, name="links command"):
     async def links(self, ctx):
         if not await ensure_primary_guild(ctx, self.bot):
             return
-        await ctx.respond("Preparing response...", ephemeral=True)
+        await ctx.defer()
         q = discord.Embed(title="Links", color=discord.Color.blue())
         q.add_field(
             name="WCA",
@@ -38,7 +38,7 @@ class linksCog(commands.Cog, name="links command"):
         )
     
 
-        await ctx.send(embed=q)
+        await ctx.respond(embed=q)
 
 
 def setup(bot: commands.Bot):
