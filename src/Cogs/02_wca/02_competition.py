@@ -27,20 +27,21 @@ class compCog(commands.Cog, name="comp command"):
             await ctx.respond(embed=q)
             return
 
+        is_special_fmc = wca_function.is_special_fmc_comp(data["name"])
+
         q = discord.Embed(
-            title=f":flag_{data['country'].lower()}: | {data['name']}",
+            title=f"{wca_function.comp_title_prefix(data['name'], data['country'])} | {data['name']}",
             description=f"{data['city']}, {wca_function.COUNTRIES_DICT.get(data['country'])} | [{data['id']}](https://www.worldcubeassociation.org/competitions/{data['id']})",
             color=discord.Colour.blue(),
         )
         start_date = data["date"]["from"]
         end_date = data["date"]["till"]
-        
-        if start_date == end_date:
-            date = f'<t:{int(dt.strptime(start_date, "%Y-%m-%d").timestamp())}:D>'
-        else:
-            start_date = dt.strptime(start_date, "%Y-%m-%d").timestamp()
-            end_date = dt.strptime(end_date, "%Y-%m-%d").timestamp()
-            date = f"<t:{int(start_date)}:D> - <t:{int(end_date)}:D> ({data['date']['numberOfDays']})"
+        date = wca_function.format_comp_date(
+            data["name"],
+            start_date,
+            end_date,
+            data["date"]["numberOfDays"],
+        )
             
         q.add_field(name="Datum", value=date, inline=False)
         
@@ -52,16 +53,14 @@ class compCog(commands.Cog, name="comp command"):
         
         q.add_field(name="Discipline", value=", ".join(events), inline=False)
 
-        #?*********
-        organizator = "\n".join([f"{org['name']}" for org in data["organisers"]])
-        q.add_field(name="Organizator(ji)", value=organizator, inline=True,)
+        if not is_special_fmc:
+            organizator = "\n".join([f"{org['name']}" for org in data["organisers"]])
+            q.add_field(name="Organizator(ji)", value=organizator, inline=True,)
 
-        #*********
-        delegates = "\n".join([ f"{delegate['name']}" for delegate in data["wcaDelegates"]])
-        q.add_field(name="WCA Delegati", value=delegates, inline=True)
-        
-        #*********
-        q.add_field(name="Prizorišče", value=f"{data['venue']['name']}\n{data['venue']['address']}", inline=False,)
+            delegates = "\n".join([ f"{delegate['name']}" for delegate in data["wcaDelegates"]])
+            q.add_field(name="WCA Delegati", value=delegates, inline=True)
+            
+            q.add_field(name="Prizorišče", value=f"{data['venue']['name']}\n{data['venue']['address']}", inline=False,)
 
         if data["externalWebsite"]:
             q.add_field(name="Spletna stran", value=data["externalWebsite"], inline=False)

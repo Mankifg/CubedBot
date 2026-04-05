@@ -168,4 +168,53 @@ def get_comp_data(id):
     }
 
     return True,out
+
+
+def is_special_fmc_world(name):
+    if not isinstance(name, str):
+        return False
+    if not name.startswith("FMC World "):
+        return False
+    year = name.removeprefix("FMC World ")
+    return len(year) == 4 and year.isdigit()
+
+
+def is_special_fmc_europe(name):
+    if not isinstance(name, str):
+        return False
+    if not name.startswith("FMC Europe "):
+        return False
+    year = name.removeprefix("FMC Europe ")
+    return len(year) == 4 and year.isdigit()
+
+
+def is_special_fmc_comp(name):
+    return is_special_fmc_world(name) or is_special_fmc_europe(name)
+
+
+def comp_title_prefix(name, country_iso2):
+    if is_special_fmc_world(name):
+        return ":earth_africa:"
+    if is_special_fmc_europe(name):
+        return ":flag_eu:"
+    return f":flag_{country_iso2.lower()}:"
+
+
+def format_comp_date(comp_name, start_date, end_date, number_of_days):
+    if not isinstance(start_date, str):
+        return ""
+
+    if is_special_fmc_world(comp_name):
+        start_ts = datetime.strptime(start_date, "%Y-%m-%d").timestamp()
+        if start_date == end_date or not isinstance(end_date, str):
+            return f'<t:{int(start_ts)}:D> (1)'
+        end_ts = datetime.strptime(end_date, "%Y-%m-%d").timestamp()
+        return f"<t:{int(start_ts)}:D> / <t:{int(end_ts)}:D> (1)"
+
+    if start_date == end_date:
+        return f'<t:{int(datetime.strptime(start_date, "%Y-%m-%d").timestamp())}:D>'
+
+    start_ts = datetime.strptime(start_date, "%Y-%m-%d").timestamp()
+    end_ts = datetime.strptime(end_date, "%Y-%m-%d").timestamp()
+    return f"<t:{int(start_ts)}:D> - <t:{int(end_ts)}:D> ({number_of_days})"
     
