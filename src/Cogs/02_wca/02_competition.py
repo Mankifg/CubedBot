@@ -4,6 +4,7 @@ from discord.ext import commands
 import src.db as db
 import src.hardstorage as hardstorage
 import src.wca_function as wca_function
+from src.guild_access import both_guild_ids
 
 from datetime import datetime as dt
 
@@ -11,7 +12,12 @@ class compCog(commands.Cog, name="comp command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
 
-    @discord.command(name="comp", usage="(id)", description="Show details for a WCA competition.")
+    @discord.command(
+        name="comp",
+        usage="(id)",
+        description="Show details for a WCA competition.",
+        guild_ids=both_guild_ids(),
+    )
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def comp(self, ctx, id):
         await ctx.defer()

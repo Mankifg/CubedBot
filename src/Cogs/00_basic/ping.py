@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import time
 import subprocess
+from src.guild_access import both_guild_ids
 
 
 def _current_version():
@@ -23,6 +24,7 @@ class PingCog(commands.Cog, name="pping command"):
         name="ping",
         usage="",
         description="Display the bot's ping.",
+        guild_ids=both_guild_ids(),
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def ping(self, ctx):

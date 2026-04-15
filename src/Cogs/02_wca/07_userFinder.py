@@ -12,6 +12,7 @@ import src.db as db
 from src.hardstorage import * 
 
 import src.wca_function as wca_function
+from src.guild_access import both_guild_ids
 
 COMP_URL = "https://www.worldcubeassociation.org/competitions/{}"
 REGISTERED_URL = "https://www.worldcubeassociation.org/api/v1/competitions/{}/registrations"
@@ -457,7 +458,12 @@ class userfinderCog(commands.Cog, name="userfinder command"):
     async def get_regions(ctx: discord.AutocompleteContext):
         return REGIONS        
     
-    @discord.command(name="userfinder", usage="(nationality) [start date: YYYY-MM-DD] [end date: YYYY-MM-DD]", description="Given nationality and time frame finds competitors who are competing")
+    @discord.command(
+        name="userfinder",
+        usage="(nationality) [start date: YYYY-MM-DD] [end date: YYYY-MM-DD]",
+        description="Given nationality and time frame finds competitors who are competing",
+        guild_ids=both_guild_ids(),
+    )
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def userFinder(
         self, ctx: discord.ApplicationContext,

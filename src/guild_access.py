@@ -40,6 +40,14 @@ def primary_guild_ids():
     return [guild_id]
 
 
+def both_guild_ids():
+    guild_ids = []
+    for guild_id in (primary_guild_id(), croatian_guild_id()):
+        if guild_id is not None and guild_id not in guild_ids:
+            guild_ids.append(guild_id)
+    return guild_ids
+
+
 async def ensure_primary_guild(ctx, bot):
     if is_primary_guild(getattr(ctx, "guild_id", None)):
         return True

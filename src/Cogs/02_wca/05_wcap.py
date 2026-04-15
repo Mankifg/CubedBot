@@ -6,6 +6,7 @@ import src.db as db
 from src.hardstorage import * 
 import src.wca_function as wca_function
 import src.functions as functions
+from src.guild_access import both_guild_ids
 
 def max_len_in_collum(data):
     return [max(len(str(element)) for element in column) for column in zip(*data)]
@@ -30,7 +31,12 @@ class wcapCog(commands.Cog, name="wcap command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
 
-    @discord.command(name="wcap", usage="(member:mention) OR (wca id:str)", description="Displays wca profile of user/wca id")
+    @discord.command(
+        name="wcap",
+        usage="(member:mention) OR (wca id:str)",
+        description="Displays wca profile of user/wca id",
+        guild_ids=both_guild_ids(),
+    )
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def wcap(self, ctx, member: discord.Member = None, user_wca_id: str = None):
         await ctx.defer()

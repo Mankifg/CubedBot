@@ -5,13 +5,19 @@ import requests, json
 import src.db as db
 
 import src.wca_function as wca_function
+from src.guild_access import both_guild_ids
 
 
 class changewcaidCog(commands.Cog, name="changewcaid command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
 
-    @discord.command(name="changewcaid", usage="(wca id:str)", description="Link your Discord account to a WCA ID.")
+    @discord.command(
+        name="changewcaid",
+        usage="(wca id:str)",
+        description="Link your Discord account to a WCA ID.",
+        guild_ids=both_guild_ids(),
+    )
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def changewcaid(self, ctx, user_input_wca_id = None):
         userObj = ctx.author
