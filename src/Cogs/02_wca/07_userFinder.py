@@ -397,8 +397,11 @@ class userfinderCog(commands.Cog, name="userfinder command"):
 
         ch = self.bot.get_channel(channel)
         if ch is None:
-            print(f"[ERROR] userfinder_channel not found for {target_key}: {channel}")
-            return
+            try:
+                ch = await self.bot.fetch_channel(channel)
+            except Exception as exc:
+                print(f"[ERROR] userfinder_channel not found for {target_key}: {channel} ({exc})")
+                return
 
         country = target_meta[target_key]["country"]
         language = target_meta[target_key]["language"]
@@ -431,26 +434,29 @@ class userfinderCog(commands.Cog, name="userfinder command"):
 
     @tasks.loop(time=datetime.time(hour=16, minute=0, tzinfo=datetime.timezone.utc))
     async def weekly_userfinder(self):
-        now_utc = datetime.datetime.now(datetime.timezone.utc)
-        if now_utc.weekday() != 2:  # Wednesday
-            return
+        try:
+            now_utc = datetime.datetime.now(datetime.timezone.utc)
+            if now_utc.weekday() != 2:  # Wednesday
+                return
 
-        run_key = (now_utc.year, now_utc.isocalendar().week)
-        if self._last_weekly_run == run_key:
-            return
+            run_key = (now_utc.year, now_utc.isocalendar().week)
+            if self._last_weekly_run == run_key:
+                return
 
-        start_date = dt.now()
-        end_date = start_date + timedelta(days=NUMBER_OF_DAYS_TO_SEARCH)
-        targets = _load_weekly_targets()
-        if not targets:
-            print("[WARN] no userfinder targets configured")
-            return
+            start_date = dt.now()
+            end_date = start_date + timedelta(days=NUMBER_OF_DAYS_TO_SEARCH)
+            targets = _load_weekly_targets()
+            if not targets:
+                print("[WARN] no userfinder targets configured")
+                return
 
-        all_competitions, target_meta, elapsed = await self._scan_weekly_targets(targets, start_date, end_date)
-        for target in targets:
-            await self._send_weekly_target(target, all_competitions, target_meta, elapsed, start_date, end_date)
+            all_competitions, target_meta, elapsed = await self._scan_weekly_targets(targets, start_date, end_date)
+            for target in targets:
+                await self._send_weekly_target(target, all_competitions, target_meta, elapsed, start_date, end_date)
 
-        self._last_weekly_run = run_key
+            self._last_weekly_run = run_key
+        except Exception as exc:
+            print(f"[ERROR] weekly_userfinder failed: {exc}")
 
     @weekly_userfinder.before_loop
     async def before_weekly_userfinder(self):
