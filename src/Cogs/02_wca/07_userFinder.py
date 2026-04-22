@@ -178,6 +178,10 @@ def _load_weekly_targets():
     if not isinstance(data, dict):
         return []
 
+    targets = data.get("userfinder_targets")
+    if isinstance(targets, list):
+        return [target for target in targets if isinstance(target, dict)]
+
     if isinstance(data.get("userfinder_channel"), str):
         return [{
             "key": "si",
@@ -186,10 +190,7 @@ def _load_weekly_targets():
             "language": "sl",
         }]
 
-    targets = data.get("userfinder_targets")
-    if not isinstance(targets, list):
-        return []
-    return [target for target in targets if isinstance(target, dict)]
+    return []
 
 
 def _build_userfinder_item(competition_name, competition_id, matching_competitors, language):
@@ -431,6 +432,7 @@ class userfinderCog(commands.Cog, name="userfinder command"):
                 part = discord.Embed(title=copy["part"](i + 1))
                 part.add_field(name=".", value=send_obj[i])
                 await ch.send(embed=part)
+        print(f"[INFO] weekly_userfinder sent target {target_key} to channel {channel}")
 
     @tasks.loop(time=datetime.time(hour=16, minute=0, tzinfo=datetime.timezone.utc))
     async def weekly_userfinder(self):
@@ -452,7 +454,11 @@ class userfinderCog(commands.Cog, name="userfinder command"):
 
             all_competitions, target_meta, elapsed = await self._scan_weekly_targets(targets, start_date, end_date)
             for target in targets:
-                await self._send_weekly_target(target, all_competitions, target_meta, elapsed, start_date, end_date)
+                target_key = str(target.get("key", "")).strip() or "unknown"
+                try:
+                    await self._send_weekly_target(target, all_competitions, target_meta, elapsed, start_date, end_date)
+                except Exception as exc:
+                    print(f"[ERROR] weekly_userfinder target failed for {target_key}: {exc}")
 
             self._last_weekly_run = run_key
         except Exception as exc:
