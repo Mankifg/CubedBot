@@ -276,13 +276,21 @@ class nrCog(commands.Cog, name="nr command"):
 
                 ch = self.bot.get_channel(channel)
                 if ch is None:
-                    print(f"[ERROR] records_channel not found for {target_key}: {channel}")
+                    try:
+                        ch = await self.bot.fetch_channel(channel)
+                    except Exception as exc:
+                        print(f"[ERROR] records_channel not found for {target_key}: {channel} ({exc})")
+                        continue
+
+                try:
+                    await ch.send(embed=q)
+                except Exception as exc:
+                    print(f"[ERROR] records send failed for {target_key} in channel {channel}: {exc}")
                     continue
 
-                await ch.send(embed=q)
                 mark_sent_nr(dedupe_map, target_key, record["id"])
                 dirty_dedupe = True
-                print("sent", target_key)
+                print(f"[INFO] records sent target {target_key} to channel {channel}")
 
         if dirty_dedupe:
             db.save_second_table_idd(dedupe_row)
