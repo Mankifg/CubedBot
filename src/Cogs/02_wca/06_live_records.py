@@ -60,7 +60,7 @@ def display_record_type(record_type, event_id):
         return "mean"
     return record_type
 
-def load_nr_targets():
+def load_live_record_targets():
     row = db.load_second_table_idd(3)
     data = row.get("data")
     if not isinstance(data, dict):
@@ -81,7 +81,7 @@ def load_nr_targets():
         return []
     return [target for target in targets if isinstance(target, dict)]
 
-def load_nr_dedupe_row():
+def load_live_record_dedupe_row():
     return db.load_second_table_idd(4)
 
 def ensure_dedupe_map(row, target_keys):
@@ -106,17 +106,17 @@ def ensure_dedupe_map(row, target_keys):
 
     return dedupe
 
-def already_sent_nr(dedupe_map, target_key, nr):
-    print("chekcing nr", target_key, nr)
+def already_sent_record(dedupe_map, target_key, record_id):
+    print("checking record", target_key, record_id)
     already_sent = dedupe_map.get(target_key, [])
-    print(nr in already_sent)
-    return nr in already_sent
+    print(record_id in already_sent)
+    return record_id in already_sent
 
-def mark_sent_nr(dedupe_map, target_key, nr):
+def mark_sent_record(dedupe_map, target_key, record_id):
     already_sent = dedupe_map.setdefault(target_key, [])
-    if nr not in already_sent:
-        print("ins", target_key, nr)
-        already_sent.append(nr)
+    if record_id not in already_sent:
+        print("ins", target_key, record_id)
+        already_sent.append(record_id)
 
 def build_record_embed(record):
     show_tag = display_tag(record)
@@ -182,7 +182,7 @@ def build_record_embed(record):
 
     return q
 
-class nrCog(commands.Cog, name="nr command"):
+class liveRecordsCog(commands.Cog, name="live records monitor"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
         self.wca_live_check.start()
@@ -190,12 +190,12 @@ class nrCog(commands.Cog, name="nr command"):
 
     @tasks.loop(seconds=300)
     async def wca_live_check(self):
-        targets = load_nr_targets()
+        targets = load_live_record_targets()
         if not targets:
             print("[WARN] no records targets configured")
             return
 
-        dedupe_row = load_nr_dedupe_row()
+        dedupe_row = load_live_record_dedupe_row()
         target_keys = [
             str(target.get("key", "")).strip()
             for target in targets
@@ -260,7 +260,7 @@ class nrCog(commands.Cog, name="nr command"):
                     continue
                 if not target_should_post_record(record, target):
                     continue
-                if already_sent_nr(dedupe_map, target_key, record["id"]):
+                if already_sent_record(dedupe_map, target_key, record["id"]):
                     continue
 
                 if q is None:
@@ -288,7 +288,7 @@ class nrCog(commands.Cog, name="nr command"):
                     print(f"[ERROR] records send failed for {target_key} in channel {channel}: {exc}")
                     continue
 
-                mark_sent_nr(dedupe_map, target_key, record["id"])
+                mark_sent_record(dedupe_map, target_key, record["id"])
                 dirty_dedupe = True
                 print(f"[INFO] records sent target {target_key} to channel {channel}")
 
@@ -304,4 +304,4 @@ class nrCog(commands.Cog, name="nr command"):
 
 
 def setup(bot: commands.Bot):
-    bot.add_cog(nrCog(bot))
+    bot.add_cog(liveRecordsCog(bot))
