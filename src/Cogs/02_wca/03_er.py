@@ -261,7 +261,7 @@ class erCog(commands.Cog, name="european records command"):
     async def er(self, ctx, event):
         await ctx.defer()
 
-        country_name = "Europe"
+        country_name = "_Europe"
 
         selected_event = EVENT_LABEL_TO_ID.get(event, None)
         if event in EVENT_GROUPS:
