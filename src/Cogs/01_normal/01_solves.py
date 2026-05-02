@@ -71,14 +71,13 @@ class MyModal(discord.ui.Modal):
                 value_from_week_with_id
             )
 
-            self.add_item(
-                discord.ui.InputText(
-                    label=f"{translated}  | {event_id}",
-                    required=False,
-                    placeholder="Vnesi čase / Enter times",
-                    value=value_to_display,
-                )
-            )  # value = what already typed
+            input_field = discord.ui.InputText(
+                label=f"{translated}  | {event_id}",
+                placeholder="Vnesi čase / Enter times",
+                value=value_to_display,
+            )
+            input_field.required = False
+            self.add_item(input_field)  # value = what already typed
 
     async def callback(self, interaction: discord.Interaction):
 
