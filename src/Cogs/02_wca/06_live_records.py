@@ -79,7 +79,7 @@ def target_should_post_record(record, target):
         return True
     if tag == "WR" and bool(target.get("include_wr")):
         return True
-    if tag == "CR" and bool(target.get("include_er")) and country_iso2 in EUROPEAN_ISO2:
+    if tag in {"CR", "ER"} and bool(target.get("include_er")) and country_iso2 in EUROPEAN_ISO2:
         return True
     return False
 
@@ -258,18 +258,48 @@ def country_iso2_from_wca_id(country_id):
         return "US"
     return ""
 
-def official_wr_marker_for_row(row):
-    record_type = row.get("type")
-    if record_type == "single":
-        return row.get("regional_single_record")
-    if record_type == "average":
-        return row.get("regional_average_record")
-    return None
+def country_name_from_iso2(country_iso2):
+    if not isinstance(country_iso2, str):
+        return ""
 
-def official_wr_row_to_record(row):
-    if official_wr_marker_for_row(row) != "WR":
-        return None
+    country_iso2 = country_iso2.upper()
+    for country in getattr(wca_function, "c_data", []):
+        if not isinstance(country, dict):
+            continue
+        if str(country.get("iso2", "")).upper() == country_iso2:
+            name = country.get("name")
+            if isinstance(name, str):
+                return name
 
+    for iso2, name in getattr(wca_function, "COUNTRIES_DICT", {}).items():
+        if str(iso2).upper() == country_iso2 and isinstance(name, str):
+            return name
+
+    return ""
+
+def official_record_regions_for_target(target):
+    regions = []
+    seen = set()
+
+    def add(region_name, tag):
+        key = (region_name, tag)
+        if region_name and key not in seen:
+            regions.append(key)
+            seen.add(key)
+
+    if bool(target.get("include_wr")):
+        add("World", "WR")
+    if bool(target.get("include_er")):
+        add("_Europe", "ER")
+
+    for country_iso2 in target.get("countries", []):
+        country_name = country_name_from_iso2(country_iso2)
+        if country_name:
+            add(country_name, "NR")
+
+    return regions
+
+def official_record_row_to_record(row, tag):
     event_id = row.get("event_id")
     record_type = row.get("type")
     value = row.get("value")
@@ -293,7 +323,7 @@ def official_wr_row_to_record(row):
 
     record = {
         "type": record_type,
-        "tag": "WR",
+        "tag": tag,
         "attemptResult": value,
         "result": {
             "attempts": attempts,
@@ -323,9 +353,9 @@ def official_wr_row_to_record(row):
     record["id"] = record_canonical_key(record)
     return record
 
-def fetch_official_world_records():
+def fetch_official_records(region_name, tag):
     response = requests.get(
-        records_url("World"),
+        records_url(region_name),
         headers=REQUEST_HEADERS,
         timeout=20,
     )
@@ -336,7 +366,7 @@ def fetch_official_world_records():
     for row in rows:
         if not isinstance(row, dict):
             continue
-        record = official_wr_row_to_record(row)
+        record = official_record_row_to_record(row, tag)
         if record is not None:
             records.append(record)
     return records
@@ -410,7 +440,7 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
         self.bot = bot
         self.records_check_lock = asyncio.Lock()
         self.wca_live_check.start()
-        self.wca_official_wr_check.start()
+        self.wca_official_records_check.start()
 
 
     @tasks.loop(seconds=300)
@@ -528,18 +558,14 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                 print(f"[INFO] records sent target {target_key} to channel {channel}")
 
     @tasks.loop(hours=1)
-    async def wca_official_wr_check(self):
+    async def wca_official_records_check(self):
         async with self.records_check_lock:
-            await self._wca_official_wr_check()
+            await self._wca_official_records_check()
 
-    async def _wca_official_wr_check(self):
-        targets = [
-            target
-            for target in load_live_record_targets()
-            if bool(target.get("include_wr"))
-        ]
+    async def _wca_official_records_check(self):
+        targets = load_live_record_targets()
         if not targets:
-            print("[WARN] no official WR targets configured")
+            print("[WARN] no official records targets configured")
             return
 
         dedupe_row = load_live_record_dedupe_row()
@@ -549,60 +575,72 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
             if str(target.get("key", "")).strip()
         ]
         dedupe_map = ensure_dedupe_map(dedupe_row, target_keys)
+        records_cache = {}
 
-        try:
-            records = await asyncio.to_thread(fetch_official_world_records)
-        except Exception as exc:
-            print(f"[ERROR] official WR check failed: {exc}")
-            return
+        for target in targets:
+            target_key = str(target.get("key", "")).strip()
+            if not target_key:
+                continue
 
-        print(
-            f"[INFO] official WCA WR check ({', '.join(target_keys)}): "
-            f"{len(records)} current WR rows"
-        )
-
-        for record in records:
-            q = None
-
-            for target in targets:
-                target_key = str(target.get("key", "")).strip()
-                if not target_key:
-                    continue
-
-                if already_sent_record(dedupe_map, target_key, record):
-                    continue
-
-                if q is None:
-                    print("OFFICIAL WR FOUND !!!", record)
-                    q = build_record_embed(record)
-
-                channel = target.get("channel")
-                try:
-                    channel = int(channel)
-                except (TypeError, ValueError):
-                    print(f"[ERROR] invalid official WR target channel for {target_key}: {channel}")
-                    continue
-
-                ch = self.bot.get_channel(channel)
-                if ch is None:
+            for region_name, tag in official_record_regions_for_target(target):
+                cache_key = (region_name, tag)
+                if cache_key not in records_cache:
                     try:
-                        ch = await self.bot.fetch_channel(channel)
+                        records_cache[cache_key] = await asyncio.to_thread(
+                            fetch_official_records,
+                            region_name,
+                            tag,
+                        )
                     except Exception as exc:
-                        print(f"[ERROR] official WR channel not found for {target_key}: {channel} ({exc})")
+                        print(f"[ERROR] official {tag} check failed for {region_name}: {exc}")
+                        records_cache[cache_key] = []
+
+                records = records_cache[cache_key]
+                print(
+                    f"[INFO] official WCA {tag} check ({target_key}, {region_name}): "
+                    f"{len(records)} current rows"
+                )
+
+                for record in records:
+                    q = None
+
+                    if not target_should_post_record(record, target):
                         continue
 
-                try:
-                    await ch.send(embed=q)
-                except Exception as exc:
-                    print(f"[ERROR] official WR send failed for {target_key} in channel {channel}: {exc}")
-                    continue
+                    if already_sent_record(dedupe_map, target_key, record):
+                        continue
 
-                mark_sent_record(dedupe_map, target_key, record)
-                save_live_record_dedupe_row(dedupe_row)
-                print(f"[INFO] official WR sent target {target_key} to channel {channel}")
+                    if q is None:
+                        print(f"OFFICIAL {tag} FOUND !!!", record)
+                        q = build_record_embed(record)
+
+                    channel = target.get("channel")
+                    try:
+                        channel = int(channel)
+                    except (TypeError, ValueError):
+                        print(f"[ERROR] invalid official records target channel for {target_key}: {channel}")
+                        continue
+
+                    ch = self.bot.get_channel(channel)
+                    if ch is None:
+                        try:
+                            ch = await self.bot.fetch_channel(channel)
+                        except Exception as exc:
+                            print(f"[ERROR] official records channel not found for {target_key}: {channel} ({exc})")
+                            continue
+
+                    try:
+                        await ch.send(embed=q)
+                    except Exception as exc:
+                        print(f"[ERROR] official records send failed for {target_key} in channel {channel}: {exc}")
+                        continue
+
+                    mark_sent_record(dedupe_map, target_key, record)
+                    save_live_record_dedupe_row(dedupe_row)
+                    print(f"[INFO] official {tag} sent target {target_key} to channel {channel}")
 
     @wca_live_check.before_loop
-    @wca_official_wr_check.before_loop
+    @wca_official_records_check.before_loop
     async def before_send_message(self):
         await self.bot.wait_until_ready()
 
