@@ -141,7 +141,12 @@ def convert_to_centisec(time_str):
 
 
 def convert_to_human_frm(centisec,eventId="333"):
-    
+
+    if centisec == -1:
+        return "DNF"
+    elif centisec == -2:
+        return "DNS"
+
     if eventId == "333mbf":
         mbld = str(centisec)
         solved = 99 - int(mbld[0:2]) + int(mbld[7:9])
@@ -154,12 +159,7 @@ def convert_to_human_frm(centisec,eventId="333"):
     
     elif eventId == "333fm":
         return str(centisec)
-    
-    if centisec == -1:
-        return "DNF"
-    elif centisec == -2:
-        return "DNS" 
-    
+
     hours = centisec // 360000
     centisec %= 360000
     minutes = centisec // 6000
