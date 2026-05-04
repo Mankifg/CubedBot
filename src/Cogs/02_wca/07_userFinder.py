@@ -361,9 +361,8 @@ class userfinderCog(commands.Cog, name="userfinder command"):
             for target_key in matched_keys:
                 count = counts[target_key]
                 language = target_meta[target_key]["language"]
-                plural = _localize_competitor_label(language, count)
                 target_meta[target_key]["items"].append(
-                    f"* [{competition_name}]({COMP_URL.format(competition_id)})\n  • {count} {plural}\n"
+                    _build_userfinder_item(competition_name, competition_id, count, language)
                 )
 
         elapsed = int(round(time.time() - s_time))
