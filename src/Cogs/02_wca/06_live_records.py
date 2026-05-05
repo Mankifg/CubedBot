@@ -194,8 +194,8 @@ def ensure_dedupe_map(row, target_keys):
 
     return dedupe
 
-def record_canonical_key(record):
-    tag = display_tag(record)
+def record_canonical_key(record, tag=None):
+    tag = tag or display_tag(record)
     round_obj = record["result"]["round"]
     competition_event = round_obj["competitionEvent"]
     event_id = competition_event["event"]["id"]
@@ -212,6 +212,20 @@ def record_dedupe_key(record):
     except (AttributeError, KeyError, TypeError):
         return None
 
+def equivalent_record_dedupe_keys(record):
+    tag = display_tag(record)
+    if tag == "NR":
+        tags = ("NR", "ER", "WR")
+    elif tag == "ER":
+        tags = ("ER", "WR")
+    else:
+        tags = (tag,)
+
+    try:
+        return [record_canonical_key(record, tag=tag) for tag in tags]
+    except (AttributeError, KeyError, TypeError):
+        return []
+
 def already_sent_record(dedupe_map, target_key, record):
     record_key = record_dedupe_key(record)
     if record_key is None:
@@ -220,7 +234,8 @@ def already_sent_record(dedupe_map, target_key, record):
 
     print("checking record", target_key, record_key)
     already_sent = dedupe_map.get(target_key, [])
-    sent = record_key in already_sent or str(record_key) in {str(item) for item in already_sent}
+    sent_keys = {str(item) for item in already_sent}
+    sent = any(str(key) in sent_keys for key in equivalent_record_dedupe_keys(record))
     print(sent)
     return sent
 
