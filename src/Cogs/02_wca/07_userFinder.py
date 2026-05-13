@@ -98,31 +98,7 @@ def _sl_count_form(count):
 
 
 def _number_text(language, count):
-    if count >= 10:
-        return str(count)
-    if language == "sl":
-        return {
-            1: "En",
-            2: "Dva",
-            3: "Trije",
-            4: "Štirje",
-            5: "Pet",
-            6: "Šest",
-            7: "Sedem",
-            8: "Osem",
-            9: "Devet",
-        }.get(count, str(count))
-    return {
-        1: "One",
-        2: "Two",
-        3: "Three",
-        4: "Four",
-        5: "Five",
-        6: "Six",
-        7: "Seven",
-        8: "Eight",
-        9: "Nine",
-    }.get(count, str(count))
+    return str(count)
 
 
 def _localize_competitor_label(language, count):
