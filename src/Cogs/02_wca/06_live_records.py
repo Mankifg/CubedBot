@@ -100,6 +100,14 @@ def format_record_result(event_id, record_type, value):
         return f"{value / 100:.2f}"
     return functions.convert_to_human_frm(value, event_id)
 
+def format_record_solves(event_id, record_type, times, result_value):
+    formatted_times = ", ".join(functions.convert_to_human_frm(time, event_id) for time in times)
+    if record_type == "average":
+        return f"{result_value} | {formatted_times}"
+    if event_id == "333fm" and times and all(isinstance(time, int) and time > 0 for time in times):
+        return f"{sum(times) / len(times):.2f} | {formatted_times}"
+    return functions.arry_to_human_frm(times, event_id)
+
 def event_display_name(event_id):
     return WCA_EVENT_NAMES.get(event_id, event_id)
 
@@ -424,18 +432,17 @@ def build_record_embed(record):
         result_label = "SINGLE"
 
     result_value = format_record_result(event_id, record["type"], record["attemptResult"])
-    solves_value = functions.arry_to_human_frm(times, event_id)
+    solves_value = format_record_solves(event_id, record["type"], times, result_value)
     event_name = round_obj["competitionEvent"]["event"]["name"]
     comp_name = round_obj["competitionEvent"]["competition"]["name"]
+    result_lines = f"{comp_name}\n\n**{result_label}:** `{result_value}`"
+    if event_id != "333mbf":
+        result_lines += f"\nSOLVES: {solves_value}"
+
     q.set_field_at(
         1,
         name=event_name,
-        value=(
-            f"{comp_name}\n"
-            f"\n"
-            f"**{result_label}:** `{result_value}`\n"
-            f"SOLVES: {solves_value}"
-        ),
+        value=result_lines,
         inline=False,
     )
 
