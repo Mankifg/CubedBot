@@ -202,16 +202,26 @@ def ensure_dedupe_map(row, target_keys):
 
     return dedupe
 
+def competition_dedupe_key(competition):
+    if not isinstance(competition, dict):
+        return "unknown"
+
+    wca_id = competition.get("wcaId")
+    if isinstance(wca_id, str) and wca_id.strip():
+        return canonical_text(wca_id)
+
+    return canonical_text(competition.get("name"))
+
 def record_canonical_key(record, tag=None):
     tag = tag or display_tag(record)
     round_obj = record["result"]["round"]
     competition_event = round_obj["competitionEvent"]
     event_id = competition_event["event"]["id"]
-    competition_name = competition_event["competition"].get("name")
+    competition = competition_event["competition"]
     person = record["result"]["person"]
     person_id = person.get("wcaId") or person.get("name") or "unknown"
     result = record["attemptResult"]
-    competition_key = canonical_text(competition_name)
+    competition_key = competition_dedupe_key(competition)
     return f"record:{tag}:{event_id}:{record['type']}:{person_id}:{result}:{competition_key}"
 
 def record_dedupe_key(record):
@@ -367,6 +377,7 @@ def official_record_row_to_record(row, tag):
                     },
                     "competition": {
                         "id": competition_id,
+                        "wcaId": competition_id,
                         "name": competition_name or competition_id,
                     },
                 },
@@ -518,6 +529,7 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                                 competition {
                                 id
                                 name
+                                wcaId
                                 }
                             }
                             }
