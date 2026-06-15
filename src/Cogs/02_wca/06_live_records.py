@@ -2,6 +2,7 @@ import asyncio
 import discord
 from discord.ext import commands
 import requests
+import traceback
 import unicodedata
 
 from discord.ext import tasks
@@ -478,8 +479,12 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
 
     @tasks.loop(seconds=300)
     async def wca_live_check(self):
-        async with self.records_check_lock:
-            await self._wca_live_check()
+        try:
+            async with self.records_check_lock:
+                await self._wca_live_check()
+        except Exception as exc:
+            print(f"[ERROR] unexpected wca live record loop failure: {exc}")
+            traceback.print_exc()
 
     async def _wca_live_check(self):
         targets = load_live_record_targets()
@@ -550,51 +555,68 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
         print(len(resp))
 
         for record in resp:
-            print(record["id"])
-            q = None
+            try:
+                await self._process_wca_live_record(
+                    record,
+                    targets,
+                    dedupe_map,
+                    dedupe_row,
+                )
+            except Exception as exc:
+                record_id = record.get("id") if isinstance(record, dict) else None
+                print(f"[ERROR] failed to process WCA Live record {record_id}: {exc}")
+                traceback.print_exc()
 
-            for target in targets:
-                target_key = str(target.get("key", "")).strip()
-                if not target_key:
-                    continue
-                if not target_should_post_record(record, target):
-                    continue
-                if already_sent_record(dedupe_map, target_key, record):
-                    continue
+    async def _process_wca_live_record(self, record, targets, dedupe_map, dedupe_row):
+        print(record["id"])
+        q = None
 
-                if q is None:
-                    print("RECORD FOUND !!!", record)
-                    q = build_record_embed(record)
+        for target in targets:
+            target_key = str(target.get("key", "")).strip()
+            if not target_key:
+                continue
+            if not target_should_post_record(record, target):
+                continue
+            if already_sent_record(dedupe_map, target_key, record):
+                continue
 
-                channel = target.get("channel")
+            if q is None:
+                print("RECORD FOUND !!!", record)
+                q = build_record_embed(record)
+
+            channel = target.get("channel")
+            try:
+                channel = int(channel)
+            except (TypeError, ValueError):
+                print(f"[ERROR] invalid records target channel for {target_key}: {channel}")
+                continue
+
+            ch = self.bot.get_channel(channel)
+            if ch is None:
                 try:
-                    channel = int(channel)
-                except (TypeError, ValueError):
-                    print(f"[ERROR] invalid records target channel for {target_key}: {channel}")
-                    continue
-
-                ch = self.bot.get_channel(channel)
-                if ch is None:
-                    try:
-                        ch = await self.bot.fetch_channel(channel)
-                    except Exception as exc:
-                        print(f"[ERROR] records_channel not found for {target_key}: {channel} ({exc})")
-                        continue
-
-                try:
-                    await ch.send(embed=q)
+                    ch = await self.bot.fetch_channel(channel)
                 except Exception as exc:
-                    print(f"[ERROR] records send failed for {target_key} in channel {channel}: {exc}")
+                    print(f"[ERROR] records_channel not found for {target_key}: {channel} ({exc})")
                     continue
 
-                mark_sent_record(dedupe_map, target_key, record)
-                save_live_record_dedupe_row(dedupe_row)
-                print(f"[INFO] records sent target {target_key} to channel {channel}")
+            try:
+                await ch.send(embed=q)
+            except Exception as exc:
+                print(f"[ERROR] records send failed for {target_key} in channel {channel}: {exc}")
+                continue
+
+            mark_sent_record(dedupe_map, target_key, record)
+            save_live_record_dedupe_row(dedupe_row)
+            print(f"[INFO] records sent target {target_key} to channel {channel}")
 
     @tasks.loop(hours=1)
     async def wca_official_records_check(self):
-        async with self.records_check_lock:
-            await self._wca_official_records_check()
+        try:
+            async with self.records_check_lock:
+                await self._wca_official_records_check()
+        except Exception as exc:
+            print(f"[ERROR] unexpected official WCA record loop failure: {exc}")
+            traceback.print_exc()
 
     async def _wca_official_records_check(self):
         targets = load_live_record_targets()
@@ -636,42 +658,62 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                 )
 
                 for record in records:
-                    q = None
-
-                    if not target_should_post_record(record, target):
-                        continue
-
-                    if already_sent_record(dedupe_map, target_key, record):
-                        continue
-
-                    if q is None:
-                        print(f"OFFICIAL {tag} FOUND !!!", record)
-                        q = build_record_embed(record)
-
-                    channel = target.get("channel")
                     try:
-                        channel = int(channel)
-                    except (TypeError, ValueError):
-                        print(f"[ERROR] invalid official records target channel for {target_key}: {channel}")
-                        continue
-
-                    ch = self.bot.get_channel(channel)
-                    if ch is None:
-                        try:
-                            ch = await self.bot.fetch_channel(channel)
-                        except Exception as exc:
-                            print(f"[ERROR] official records channel not found for {target_key}: {channel} ({exc})")
-                            continue
-
-                    try:
-                        await ch.send(embed=q)
+                        await self._process_official_record(
+                            record,
+                            target,
+                            target_key,
+                            tag,
+                            dedupe_map,
+                            dedupe_row,
+                        )
                     except Exception as exc:
-                        print(f"[ERROR] official records send failed for {target_key} in channel {channel}: {exc}")
-                        continue
+                        record_id = record.get("id") if isinstance(record, dict) else None
+                        print(f"[ERROR] failed to process official {tag} record {record_id}: {exc}")
+                        traceback.print_exc()
 
-                    mark_sent_record(dedupe_map, target_key, record)
-                    save_live_record_dedupe_row(dedupe_row)
-                    print(f"[INFO] official {tag} sent target {target_key} to channel {channel}")
+    async def _process_official_record(
+        self,
+        record,
+        target,
+        target_key,
+        tag,
+        dedupe_map,
+        dedupe_row,
+    ):
+        if not target_should_post_record(record, target):
+            return
+
+        if already_sent_record(dedupe_map, target_key, record):
+            return
+
+        print(f"OFFICIAL {tag} FOUND !!!", record)
+        q = build_record_embed(record)
+
+        channel = target.get("channel")
+        try:
+            channel = int(channel)
+        except (TypeError, ValueError):
+            print(f"[ERROR] invalid official records target channel for {target_key}: {channel}")
+            return
+
+        ch = self.bot.get_channel(channel)
+        if ch is None:
+            try:
+                ch = await self.bot.fetch_channel(channel)
+            except Exception as exc:
+                print(f"[ERROR] official records channel not found for {target_key}: {channel} ({exc})")
+                return
+
+        try:
+            await ch.send(embed=q)
+        except Exception as exc:
+            print(f"[ERROR] official records send failed for {target_key} in channel {channel}: {exc}")
+            return
+
+        mark_sent_record(dedupe_map, target_key, record)
+        save_live_record_dedupe_row(dedupe_row)
+        print(f"[INFO] official {tag} sent target {target_key} to channel {channel}")
 
     @wca_live_check.before_loop
     @wca_official_records_check.before_loop
