@@ -137,3 +137,4 @@ Cogs\99_what_to_call_this\auto_msg.pya
 CubedBotExtention/*
 settings.json
 .DS_Store
+local-logs/

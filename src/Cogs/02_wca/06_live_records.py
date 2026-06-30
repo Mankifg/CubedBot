@@ -3,6 +3,7 @@ import discord
 from discord.ext import commands
 import requests
 import traceback
+import time
 import unicodedata
 
 from discord.ext import tasks
@@ -165,20 +166,87 @@ def _merge_dedupe_into(target_dedupe, source_dedupe):
                 target_records.append(record_id)
                 target_record_set.add(record_id)
 
-def save_live_record_dedupe_row(row):
+def _normalize_pending(pending):
+    if not isinstance(pending, dict):
+        return {}
+
+    normalized = {}
+    for target_key, source_records in pending.items():
+        target_key = str(target_key)
+        if isinstance(source_records, dict):
+            normalized[target_key] = {
+                str(record_id): dict(metadata) if isinstance(metadata, dict) else {}
+                for record_id, metadata in source_records.items()
+            }
+        elif isinstance(source_records, list):
+            normalized[target_key] = {
+                str(record_id): {}
+                for record_id in source_records
+            }
+    return normalized
+
+def _merge_pending_into(target_pending, source_pending):
+    for target_key, source_records in source_pending.items():
+        if not isinstance(source_records, dict):
+            continue
+        target_records = target_pending.setdefault(target_key, {})
+        if not isinstance(target_records, dict):
+            target_records = {}
+            target_pending[target_key] = target_records
+        for record_id, metadata in source_records.items():
+            record_id = str(record_id)
+            if record_id not in target_records:
+                target_records[record_id] = (
+                    dict(metadata) if isinstance(metadata, dict) else {}
+                )
+
+def _remove_sent_from_pending(pending_map, dedupe_map):
+    for target_key, pending_records in pending_map.items():
+        if not isinstance(pending_records, dict):
+            continue
+        sent_keys = {
+            str(record_id)
+            for record_id in dedupe_map.get(target_key, [])
+        }
+        for record_id in list(pending_records):
+            if str(record_id) in sent_keys:
+                del pending_records[record_id]
+
+def _remove_pending_keys(pending_map, pending_removals):
+    if not isinstance(pending_removals, dict):
+        return
+
+    for target_key, record_ids in pending_removals.items():
+        pending_records = pending_map.get(str(target_key))
+        if not isinstance(pending_records, dict):
+            continue
+        for record_id in record_ids:
+            pending_records.pop(str(record_id), None)
+
+def save_live_record_dedupe_row(row, pending_removals=None):
     latest_row = load_live_record_dedupe_row()
     if not isinstance(latest_row.get("data"), dict):
         latest_row["data"] = {}
 
     latest_dedupe = _normalize_dedupe(latest_row["data"].get("records_dedupe"))
+    latest_pending = _normalize_pending(latest_row["data"].get("records_pending"))
     local_data = row.get("data") if isinstance(row.get("data"), dict) else {}
     local_dedupe = _normalize_dedupe(local_data.get("records_dedupe"))
+    local_pending = _normalize_pending(local_data.get("records_pending"))
 
     _merge_dedupe_into(latest_dedupe, local_dedupe)
     _merge_dedupe_into(local_dedupe, latest_dedupe)
+    _merge_pending_into(latest_pending, local_pending)
+    _merge_pending_into(local_pending, latest_pending)
+    _remove_pending_keys(latest_pending, pending_removals)
+    _remove_pending_keys(local_pending, pending_removals)
+    _remove_sent_from_pending(latest_pending, latest_dedupe)
+    _remove_sent_from_pending(local_pending, local_dedupe)
 
     latest_row["data"]["records_dedupe"] = latest_dedupe
+    latest_row["data"]["records_pending"] = latest_pending
     row.setdefault("data", {})["records_dedupe"] = local_dedupe
+    row.setdefault("data", {})["records_pending"] = local_pending
     db.save_second_table_idd(latest_row)
 
 def ensure_dedupe_map(row, target_keys):
@@ -202,6 +270,20 @@ def ensure_dedupe_map(row, target_keys):
             dedupe[key] = []
 
     return dedupe
+
+def ensure_pending_map(row, target_keys):
+    if not isinstance(row.get("data"), dict):
+        row["data"] = {}
+
+    pending = _normalize_pending(row["data"].get("records_pending"))
+    row["data"]["records_pending"] = pending
+
+    for key in target_keys:
+        existing = pending.get(key)
+        if not isinstance(existing, dict):
+            pending[key] = {}
+
+    return pending
 
 def competition_dedupe_key(competition):
     if not isinstance(competition, dict):
@@ -245,7 +327,7 @@ def equivalent_record_dedupe_keys(record):
     except (AttributeError, KeyError, TypeError):
         return []
 
-def already_sent_record(dedupe_map, target_key, record):
+def already_sent_record(dedupe_map, pending_map, target_key, record):
     record_key = record_dedupe_key(record)
     if record_key is None:
         print("[ERROR] record has no canonical dedupe key:", record)
@@ -253,8 +335,16 @@ def already_sent_record(dedupe_map, target_key, record):
 
     print("checking record", target_key, record_key)
     already_sent = dedupe_map.get(target_key, [])
+    pending_records = pending_map.get(target_key, {})
     sent_keys = {str(item) for item in already_sent}
-    sent = any(str(key) in sent_keys for key in equivalent_record_dedupe_keys(record))
+    pending_keys = {
+        str(item)
+        for item in pending_records.keys()
+    } if isinstance(pending_records, dict) else set()
+    sent = any(
+        str(key) in sent_keys or str(key) in pending_keys
+        for key in equivalent_record_dedupe_keys(record)
+    )
     print(sent)
     return sent
 
@@ -268,6 +358,53 @@ def mark_sent_record(dedupe_map, target_key, record):
     if record_key not in already_sent:
         print("ins", target_key, record_key)
         already_sent.append(record_key)
+
+def mark_pending_record(pending_map, target_key, record, source):
+    record_key = record_dedupe_key(record)
+    if record_key is None:
+        print("[ERROR] record has no canonical pending key:", record)
+        return None
+
+    pending_records = pending_map.setdefault(target_key, {})
+    if not isinstance(pending_records, dict):
+        pending_records = {}
+        pending_map[target_key] = pending_records
+    if record_key not in pending_records:
+        print("pending", target_key, record_key)
+        pending_records[record_key] = {
+            "created_at": int(time.time()),
+            "source": source,
+        }
+    return record_key
+
+def clear_pending_record(pending_map, target_key, record):
+    record_key = record_dedupe_key(record)
+    if record_key is None:
+        return None
+
+    pending_records = pending_map.get(target_key)
+    if isinstance(pending_records, dict) and record_key in pending_records:
+        print("clear pending", target_key, record_key)
+        del pending_records[record_key]
+    return record_key
+
+def reserve_pending_record(dedupe_row, pending_map, target_key, record, source):
+    record_key = mark_pending_record(pending_map, target_key, record, source)
+    if record_key is None:
+        return False
+    save_live_record_dedupe_row(dedupe_row)
+    return True
+
+def mark_sent_and_clear_pending(dedupe_row, dedupe_map, pending_map, target_key, record):
+    mark_sent_record(dedupe_map, target_key, record)
+    record_key = clear_pending_record(pending_map, target_key, record)
+    pending_removals = {target_key: [record_key]} if record_key is not None else None
+    save_live_record_dedupe_row(dedupe_row, pending_removals=pending_removals)
+
+def clear_pending_after_failed_send(dedupe_row, pending_map, target_key, record):
+    record_key = clear_pending_record(pending_map, target_key, record)
+    pending_removals = {target_key: [record_key]} if record_key is not None else None
+    save_live_record_dedupe_row(dedupe_row, pending_removals=pending_removals)
 
 def records_url(country_name):
     return f"{RECORDS_PAGE_URL}?region={quote(country_name)}&show=mixed"
@@ -436,7 +573,9 @@ def build_record_embed(record):
     for el in record["result"]["attempts"]:
         times.append(el["result"])
 
-    if shown_type == "mean":
+    if event_id == "333mbf":
+        result_label = "RESULT"
+    elif shown_type == "mean":
         result_label = "MEAN"
     elif record["type"] == "average":
         result_label = "AVERAGE"
@@ -449,7 +588,7 @@ def build_record_embed(record):
     comp_name = round_obj["competitionEvent"]["competition"]["name"]
     result_lines = f"{comp_name}\n\n**{result_label}:** `{result_value}`"
     if event_id != "333mbf":
-        result_lines += f"\nSOLVES: {solves_value}"
+        result_lines += f"\n\nSOLVES: {solves_value}"
 
     q.set_field_at(
         1,
@@ -477,7 +616,7 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
         self.wca_official_records_check.start()
 
 
-    @tasks.loop(seconds=300)
+    @tasks.loop(seconds=600)
     async def wca_live_check(self):
         try:
             async with self.records_check_lock:
@@ -499,6 +638,7 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
             if str(target.get("key", "")).strip()
         ]
         dedupe_map = ensure_dedupe_map(dedupe_row, target_keys)
+        pending_map = ensure_pending_map(dedupe_row, target_keys)
 
         print(f"[INFO] wca live record check ({', '.join(target_keys)})")
         try:
@@ -560,6 +700,7 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                     record,
                     targets,
                     dedupe_map,
+                    pending_map,
                     dedupe_row,
                 )
             except Exception as exc:
@@ -567,7 +708,14 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                 print(f"[ERROR] failed to process WCA Live record {record_id}: {exc}")
                 traceback.print_exc()
 
-    async def _process_wca_live_record(self, record, targets, dedupe_map, dedupe_row):
+    async def _process_wca_live_record(
+        self,
+        record,
+        targets,
+        dedupe_map,
+        pending_map,
+        dedupe_row,
+    ):
         print(record["id"])
         q = None
 
@@ -577,7 +725,7 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                 continue
             if not target_should_post_record(record, target):
                 continue
-            if already_sent_record(dedupe_map, target_key, record):
+            if already_sent_record(dedupe_map, pending_map, target_key, record):
                 continue
 
             if q is None:
@@ -600,14 +748,49 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                     continue
 
             try:
+                reserve_pending_record(
+                    dedupe_row,
+                    pending_map,
+                    target_key,
+                    record,
+                    "wca_live",
+                )
+            except Exception as exc:
+                print(f"[ERROR] records pending save failed for {target_key}: {exc}")
+                traceback.print_exc()
+                continue
+
+            try:
                 await ch.send(embed=q)
             except Exception as exc:
                 print(f"[ERROR] records send failed for {target_key} in channel {channel}: {exc}")
+                try:
+                    clear_pending_after_failed_send(
+                        dedupe_row,
+                        pending_map,
+                        target_key,
+                        record,
+                    )
+                except Exception as cleanup_exc:
+                    print(f"[ERROR] records pending cleanup failed for {target_key}: {cleanup_exc}")
+                    traceback.print_exc()
                 continue
 
-            mark_sent_record(dedupe_map, target_key, record)
-            save_live_record_dedupe_row(dedupe_row)
-            print(f"[INFO] records sent target {target_key} to channel {channel}")
+            try:
+                mark_sent_and_clear_pending(
+                    dedupe_row,
+                    dedupe_map,
+                    pending_map,
+                    target_key,
+                    record,
+                )
+                print(f"[INFO] records sent target {target_key} to channel {channel}")
+            except Exception as exc:
+                print(
+                    f"[ERROR] records final dedupe save failed for {target_key}: {exc}. "
+                    "Pending reservation remains."
+                )
+                traceback.print_exc()
 
     @tasks.loop(hours=1)
     async def wca_official_records_check(self):
@@ -631,6 +814,7 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
             if str(target.get("key", "")).strip()
         ]
         dedupe_map = ensure_dedupe_map(dedupe_row, target_keys)
+        pending_map = ensure_pending_map(dedupe_row, target_keys)
         records_cache = {}
 
         for target in targets:
@@ -665,6 +849,7 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                             target_key,
                             tag,
                             dedupe_map,
+                            pending_map,
                             dedupe_row,
                         )
                     except Exception as exc:
@@ -679,12 +864,13 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
         target_key,
         tag,
         dedupe_map,
+        pending_map,
         dedupe_row,
     ):
         if not target_should_post_record(record, target):
             return
 
-        if already_sent_record(dedupe_map, target_key, record):
+        if already_sent_record(dedupe_map, pending_map, target_key, record):
             return
 
         print(f"OFFICIAL {tag} FOUND !!!", record)
@@ -706,14 +892,49 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                 return
 
         try:
+            reserve_pending_record(
+                dedupe_row,
+                pending_map,
+                target_key,
+                record,
+                f"official_{tag.lower()}",
+            )
+        except Exception as exc:
+            print(f"[ERROR] official records pending save failed for {target_key}: {exc}")
+            traceback.print_exc()
+            return
+
+        try:
             await ch.send(embed=q)
         except Exception as exc:
             print(f"[ERROR] official records send failed for {target_key} in channel {channel}: {exc}")
+            try:
+                clear_pending_after_failed_send(
+                    dedupe_row,
+                    pending_map,
+                    target_key,
+                    record,
+                )
+            except Exception as cleanup_exc:
+                print(f"[ERROR] official records pending cleanup failed for {target_key}: {cleanup_exc}")
+                traceback.print_exc()
             return
 
-        mark_sent_record(dedupe_map, target_key, record)
-        save_live_record_dedupe_row(dedupe_row)
-        print(f"[INFO] official {tag} sent target {target_key} to channel {channel}")
+        try:
+            mark_sent_and_clear_pending(
+                dedupe_row,
+                dedupe_map,
+                pending_map,
+                target_key,
+                record,
+            )
+            print(f"[INFO] official {tag} sent target {target_key} to channel {channel}")
+        except Exception as exc:
+            print(
+                f"[ERROR] official {tag} final dedupe save failed for {target_key}: {exc}. "
+                "Pending reservation remains."
+            )
+            traceback.print_exc()
 
     @wca_live_check.before_loop
     @wca_official_records_check.before_loop
