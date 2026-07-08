@@ -12,6 +12,27 @@ import src.hardstorage as hardstorage
 LAT,LON = 46.0569, 14.5058
 
 
+def _people_field(singular, dual, plural, people):
+    if not isinstance(people, list):
+        people = []
+    names = [
+        person.get("name")
+        for person in people
+        if isinstance(person, dict) and person.get("name")
+    ]
+    if len(names) == 1:
+        label = singular
+    elif len(names) == 2:
+        label = dual
+    else:
+        label = plural
+    if not names:
+        return label, "-"
+    if len(names) <= 5:
+        return label, "\n".join(names)
+    return label, ", ".join(names)
+
+
 class annouceCog(commands.Cog, name="annouce command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
@@ -110,11 +131,21 @@ class annouceCog(commands.Cog, name="annouce command"):
                 q.add_field(name="Discipline", value=", ".join(events), inline=False)
 
                 if not is_special_fmc:
-                    organizator = "\n".join([f"{org['name']}" for org in data["organisers"]])
-                    q.add_field(name="Organizator(ji)", value=organizator, inline=True,)
+                    organizer_label, organizer_value = _people_field(
+                        "Organizator",
+                        "Organizatorja",
+                        "Organizatorji",
+                        data["organisers"],
+                    )
+                    q.add_field(name=organizer_label, value=organizer_value, inline=True)
 
-                    delegates = "\n".join([ f"{delegate['name']}" for delegate in data["wcaDelegates"]])
-                    q.add_field(name="WCA Delegati", value=delegates, inline=True)
+                    delegate_label, delegate_value = _people_field(
+                        "WCA delegat",
+                        "WCA delegata",
+                        "WCA delegati",
+                        data["wcaDelegates"],
+                    )
+                    q.add_field(name=delegate_label, value=delegate_value, inline=True)
                     
                     q.add_field(name="Prizorišče", value=f"{data['venue']['name']}\n{data['venue']['address']}", inline=False,)
 
