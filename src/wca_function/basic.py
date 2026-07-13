@@ -165,6 +165,11 @@ def get_comp_data(id):
             "details": payload.get("venue_details", ""),
         },
         "externalWebsite": website,
+        "registration_open": payload.get("registration_open"),
+        "registration_close": payload.get("registration_close"),
+        "use_wca_registration": payload.get("use_wca_registration"),
+        "external_registration_page": payload.get("external_registration_page"),
+        "url": payload.get("url", SINGLE_COMP_BY_ID.format(id)),
     }
 
     return True,out
