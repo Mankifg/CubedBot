@@ -102,13 +102,66 @@ def format_record_result(event_id, record_type, value):
         return f"{value / 100:.2f}"
     return functions.convert_to_human_frm(value, event_id)
 
+def trimmed_attempt_indices(event_id, times):
+    if event_id in MEAN_EVENT_IDS or event_id == "333mbf" or len(times) != 5:
+        return set()
+
+    invalid_indices = [
+        index
+        for index, time in enumerate(times)
+        if time in {-1, -2}
+    ]
+    worst_index = invalid_indices[-1] if invalid_indices else None
+
+    valid_times = [
+        (index, time)
+        for index, time in enumerate(times)
+        if isinstance(time, int) and time > 0
+    ]
+    if valid_times:
+        best_value = min(time for _index, time in valid_times)
+        best_index = next(
+            index
+            for index, time in valid_times
+            if time == best_value
+        )
+    else:
+        best_index = None
+
+    if worst_index is None and valid_times:
+        worst_value = max(time for _index, time in valid_times)
+        worst_index = next(
+            index
+            for index, time in reversed(valid_times)
+            if time == worst_value
+        )
+
+    return {
+        index
+        for index in {best_index, worst_index}
+        if index is not None
+    }
+
+def format_record_attempts(event_id, times):
+    trimmed_indices = trimmed_attempt_indices(event_id, times)
+    formatted_times = []
+    for index, time in enumerate(times):
+        formatted_time = functions.convert_to_human_frm(time, event_id)
+        if index in trimmed_indices:
+            formatted_time = f"({formatted_time})"
+        formatted_times.append(formatted_time)
+    return ", ".join(formatted_times)
+
 def format_record_solves(event_id, record_type, times, result_value):
-    formatted_times = ", ".join(functions.convert_to_human_frm(time, event_id) for time in times)
+    if event_id == "333mbf":
+        return ""
+
+    formatted_times = format_record_attempts(event_id, times)
     if record_type == "average":
         return f"{result_value} | {formatted_times}"
     if event_id == "333fm" and times and all(isinstance(time, int) and time > 0 for time in times):
         return f"{sum(times) / len(times):.2f} | {formatted_times}"
-    return functions.arry_to_human_frm(times, event_id)
+    return f"{functions.convert_to_human_frm(functions.avg_of(times[:], event_id), event_id)} | {formatted_times}"
 
 def event_display_name(event_id):
     return WCA_EVENT_NAMES.get(event_id, event_id)
