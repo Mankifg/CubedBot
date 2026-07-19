@@ -158,7 +158,7 @@ def format_record_solves(event_id, record_type, times, result_value):
 
     formatted_times = format_record_attempts(event_id, times)
     if record_type == "average":
-        return f"{result_value} | {formatted_times}"
+        return formatted_times
     if event_id == "333fm" and times and all(isinstance(time, int) and time > 0 for time in times):
         return f"{sum(times) / len(times):.2f} | {formatted_times}"
     return f"{functions.convert_to_human_frm(functions.avg_of(times[:], event_id), event_id)} | {formatted_times}"
@@ -380,6 +380,74 @@ def equivalent_record_dedupe_keys(record):
     except (AttributeError, KeyError, TypeError):
         return []
 
+def record_group_key(record):
+    try:
+        round_obj = record["result"]["round"]
+        competition_event = round_obj["competitionEvent"]
+        event_id = competition_event["event"]["id"]
+        competition = competition_event["competition"]
+        person = record["result"]["person"]
+        person_id = person.get("wcaId") or canonical_text(person.get("name"))
+        attempts = tuple(
+            attempt.get("result")
+            for attempt in record["result"].get("attempts", [])
+            if isinstance(attempt, dict)
+        )
+        return (
+            display_tag(record),
+            event_id,
+            person_id,
+            competition_dedupe_key(competition),
+            str(round_obj.get("id")),
+            attempts,
+        )
+    except (AttributeError, KeyError, TypeError):
+        return None
+
+def ordered_record_group(records):
+    return sorted(
+        records,
+        key=lambda record: 0 if record.get("type") == "average" else 1,
+    )
+
+def grouped_record_batches(records):
+    grouped = {}
+    order = []
+
+    for record in records:
+        key = record_group_key(record)
+        if key is None:
+            order.append([record])
+            continue
+        if key not in grouped:
+            grouped[key] = []
+            order.append(key)
+        grouped[key].append(record)
+
+    batches = []
+    for item in order:
+        if isinstance(item, list):
+            batches.append(item)
+            continue
+
+        records_with_key = grouped[item]
+        singles = [
+            record
+            for record in records_with_key
+            if record.get("type") == "single"
+        ]
+        averages = [
+            record
+            for record in records_with_key
+            if record.get("type") == "average"
+        ]
+        if len(records_with_key) == 2 and len(singles) == 1 and len(averages) == 1:
+            batches.append(ordered_record_group(records_with_key))
+        else:
+            batches.extend([record] for record in records_with_key)
+
+    return batches
+
 def already_sent_record(dedupe_map, pending_map, target_key, record):
     record_key = record_dedupe_key(record)
     if record_key is None:
@@ -448,15 +516,55 @@ def reserve_pending_record(dedupe_row, pending_map, target_key, record, source):
     save_live_record_dedupe_row(dedupe_row)
     return True
 
+def reserve_pending_records(dedupe_row, pending_map, target_key, records, source):
+    for record in records:
+        if record_dedupe_key(record) is None:
+            print("[ERROR] record has no canonical pending key:", record)
+            return False
+
+    for record in records:
+        record_key = mark_pending_record(pending_map, target_key, record, source)
+        if record_key is None:
+            return False
+    save_live_record_dedupe_row(dedupe_row)
+    return True
+
 def mark_sent_and_clear_pending(dedupe_row, dedupe_map, pending_map, target_key, record):
     mark_sent_record(dedupe_map, target_key, record)
     record_key = clear_pending_record(pending_map, target_key, record)
     pending_removals = {target_key: [record_key]} if record_key is not None else None
     save_live_record_dedupe_row(dedupe_row, pending_removals=pending_removals)
 
+def mark_sent_records_and_clear_pending(dedupe_row, dedupe_map, pending_map, target_key, records):
+    pending_removal_keys = []
+    for record in records:
+        mark_sent_record(dedupe_map, target_key, record)
+        record_key = clear_pending_record(pending_map, target_key, record)
+        if record_key is not None:
+            pending_removal_keys.append(record_key)
+    pending_removals = (
+        {target_key: pending_removal_keys}
+        if pending_removal_keys
+        else None
+    )
+    save_live_record_dedupe_row(dedupe_row, pending_removals=pending_removals)
+
 def clear_pending_after_failed_send(dedupe_row, pending_map, target_key, record):
     record_key = clear_pending_record(pending_map, target_key, record)
     pending_removals = {target_key: [record_key]} if record_key is not None else None
+    save_live_record_dedupe_row(dedupe_row, pending_removals=pending_removals)
+
+def clear_pending_records_after_failed_send(dedupe_row, pending_map, target_key, records):
+    pending_removal_keys = []
+    for record in records:
+        record_key = clear_pending_record(pending_map, target_key, record)
+        if record_key is not None:
+            pending_removal_keys.append(record_key)
+    pending_removals = (
+        {target_key: pending_removal_keys}
+        if pending_removal_keys
+        else None
+    )
     save_live_record_dedupe_row(dedupe_row, pending_removals=pending_removals)
 
 def records_url(country_name):
@@ -596,13 +704,33 @@ def fetch_official_records(region_name, tag):
             records.append(record)
     return records
 
-def build_record_embed(record):
+def record_result_label(record, event_id):
+    shown_type = display_record_type(record["type"], event_id)
+    if event_id == "333mbf":
+        return "RESULT"
+    if shown_type == "mean":
+        return "MEAN"
+    if record["type"] == "average":
+        return "AVERAGE"
+    return "SINGLE"
+
+def record_group_title(show_tag, records, event_id):
+    shown_types = [
+        display_record_type(record["type"], event_id)
+        for record in ordered_record_group(records)
+    ]
+    if len(shown_types) == 2:
+        return f"{show_tag} {shown_types[0]} & {shown_types[1]}"
+    return f"{show_tag} {shown_types[0]}"
+
+def build_record_group_embed(records):
+    records = ordered_record_group(records)
+    record = records[0]
     show_tag = display_tag(record)
     person = record["result"]["person"]
     round_obj = record["result"]["round"]
     event_id = round_obj["competitionEvent"]["event"]["id"]
-    shown_type = display_record_type(record["type"], event_id)
-    titl = f"{show_tag} {shown_type}"
+    titl = record_group_title(show_tag, records, event_id)
 
     if show_tag == "NR":
         q = discord.Embed(title=titl, color=discord.Colour.green())
@@ -622,24 +750,33 @@ def build_record_embed(record):
         inline=False,
     )
 
-    times = []
-    for el in record["result"]["attempts"]:
-        times.append(el["result"])
-
-    if event_id == "333mbf":
-        result_label = "RESULT"
-    elif shown_type == "mean":
-        result_label = "MEAN"
-    elif record["type"] == "average":
-        result_label = "AVERAGE"
-    else:
-        result_label = "SINGLE"
-
-    result_value = format_record_result(event_id, record["type"], record["attemptResult"])
-    solves_value = format_record_solves(event_id, record["type"], times, result_value)
+    average_record = next(
+        (record for record in records if record.get("type") == "average"),
+        None,
+    )
+    solves_record = average_record or record
+    times = [
+        el["result"]
+        for el in solves_record["result"]["attempts"]
+    ]
+    solves_value = format_record_solves(
+        event_id,
+        solves_record["type"],
+        times,
+        format_record_result(
+            event_id,
+            solves_record["type"],
+            solves_record["attemptResult"],
+        ),
+    )
     event_name = round_obj["competitionEvent"]["event"]["name"]
     comp_name = round_obj["competitionEvent"]["competition"]["name"]
-    result_lines = f"{comp_name}\n\n**{result_label}:** `{result_value}`"
+    result_lines = f"{comp_name}\n\n"
+    result_lines += "\n".join(
+        f"**{record_result_label(record, event_id)}:** "
+        f"`{format_record_result(event_id, record['type'], record['attemptResult'])}`"
+        for record in records
+    )
     if event_id != "333mbf":
         result_lines += f"\n\nSOLVES: {solves_value}"
 
@@ -660,6 +797,9 @@ def build_record_embed(record):
         print("[ERROR] not nr,er or wr?")
 
     return q
+
+def build_record_embed(record):
+    return build_record_group_embed([record])
 
 class liveRecordsCog(commands.Cog, name="live records monitor"):
     def __init__(self, bot: commands.bot):
@@ -747,43 +887,53 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
       
         print(len(resp))
 
-        for record in resp:
+        for records in grouped_record_batches(resp):
             try:
-                await self._process_wca_live_record(
-                    record,
+                await self._process_wca_live_records(
+                    records,
                     targets,
                     dedupe_map,
                     pending_map,
                     dedupe_row,
                 )
             except Exception as exc:
-                record_id = record.get("id") if isinstance(record, dict) else None
-                print(f"[ERROR] failed to process WCA Live record {record_id}: {exc}")
+                record_ids = [
+                    record.get("id")
+                    for record in records
+                    if isinstance(record, dict)
+                ]
+                print(f"[ERROR] failed to process WCA Live records {record_ids}: {exc}")
                 traceback.print_exc()
 
-    async def _process_wca_live_record(
+    async def _process_wca_live_records(
         self,
-        record,
+        records,
         targets,
         dedupe_map,
         pending_map,
         dedupe_row,
     ):
-        print(record["id"])
-        q = None
+        print(", ".join(str(record.get("id")) for record in records))
 
         for target in targets:
             target_key = str(target.get("key", "")).strip()
             if not target_key:
                 continue
-            if not target_should_post_record(record, target):
-                continue
-            if already_sent_record(dedupe_map, pending_map, target_key, record):
+
+            send_records = []
+            for record in records:
+                if not target_should_post_record(record, target):
+                    continue
+                if already_sent_record(dedupe_map, pending_map, target_key, record):
+                    continue
+                send_records.append(record)
+
+            if not send_records:
                 continue
 
-            if q is None:
-                print("RECORD FOUND !!!", record)
-                q = build_record_embed(record)
+            send_records = ordered_record_group(send_records)
+            print("RECORD FOUND !!!", send_records)
+            q = build_record_group_embed(send_records)
 
             channel = target.get("channel")
             try:
@@ -801,11 +951,11 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                     continue
 
             try:
-                reserve_pending_record(
+                reserve_pending_records(
                     dedupe_row,
                     pending_map,
                     target_key,
-                    record,
+                    send_records,
                     "wca_live",
                 )
             except Exception as exc:
@@ -818,11 +968,11 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
             except Exception as exc:
                 print(f"[ERROR] records send failed for {target_key} in channel {channel}: {exc}")
                 try:
-                    clear_pending_after_failed_send(
+                    clear_pending_records_after_failed_send(
                         dedupe_row,
                         pending_map,
                         target_key,
-                        record,
+                        send_records,
                     )
                 except Exception as cleanup_exc:
                     print(f"[ERROR] records pending cleanup failed for {target_key}: {cleanup_exc}")
@@ -830,12 +980,12 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                 continue
 
             try:
-                mark_sent_and_clear_pending(
+                mark_sent_records_and_clear_pending(
                     dedupe_row,
                     dedupe_map,
                     pending_map,
                     target_key,
-                    record,
+                    send_records,
                 )
                 print(f"[INFO] records sent target {target_key} to channel {channel}")
             except Exception as exc:
@@ -894,10 +1044,10 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                     f"{len(records)} current rows"
                 )
 
-                for record in records:
+                for record_group in grouped_record_batches(records):
                     try:
-                        await self._process_official_record(
-                            record,
+                        await self._process_official_records(
+                            record_group,
                             target,
                             target_key,
                             tag,
@@ -906,13 +1056,17 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                             dedupe_row,
                         )
                     except Exception as exc:
-                        record_id = record.get("id") if isinstance(record, dict) else None
-                        print(f"[ERROR] failed to process official {tag} record {record_id}: {exc}")
+                        record_ids = [
+                            record.get("id")
+                            for record in record_group
+                            if isinstance(record, dict)
+                        ]
+                        print(f"[ERROR] failed to process official {tag} records {record_ids}: {exc}")
                         traceback.print_exc()
 
-    async def _process_official_record(
+    async def _process_official_records(
         self,
-        record,
+        records,
         target,
         target_key,
         tag,
@@ -920,14 +1074,20 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
         pending_map,
         dedupe_row,
     ):
-        if not target_should_post_record(record, target):
+        send_records = []
+        for record in records:
+            if not target_should_post_record(record, target):
+                continue
+            if already_sent_record(dedupe_map, pending_map, target_key, record):
+                continue
+            send_records.append(record)
+
+        if not send_records:
             return
 
-        if already_sent_record(dedupe_map, pending_map, target_key, record):
-            return
-
-        print(f"OFFICIAL {tag} FOUND !!!", record)
-        q = build_record_embed(record)
+        send_records = ordered_record_group(send_records)
+        print(f"OFFICIAL {tag} FOUND !!!", send_records)
+        q = build_record_group_embed(send_records)
 
         channel = target.get("channel")
         try:
@@ -945,11 +1105,11 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                 return
 
         try:
-            reserve_pending_record(
+            reserve_pending_records(
                 dedupe_row,
                 pending_map,
                 target_key,
-                record,
+                send_records,
                 f"official_{tag.lower()}",
             )
         except Exception as exc:
@@ -962,11 +1122,11 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
         except Exception as exc:
             print(f"[ERROR] official records send failed for {target_key} in channel {channel}: {exc}")
             try:
-                clear_pending_after_failed_send(
+                clear_pending_records_after_failed_send(
                     dedupe_row,
                     pending_map,
                     target_key,
-                    record,
+                    send_records,
                 )
             except Exception as cleanup_exc:
                 print(f"[ERROR] official records pending cleanup failed for {target_key}: {cleanup_exc}")
@@ -974,12 +1134,12 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
             return
 
         try:
-            mark_sent_and_clear_pending(
+            mark_sent_records_and_clear_pending(
                 dedupe_row,
                 dedupe_map,
                 pending_map,
                 target_key,
-                record,
+                send_records,
             )
             print(f"[INFO] official {tag} sent target {target_key} to channel {channel}")
         except Exception as exc:
