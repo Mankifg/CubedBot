@@ -6,7 +6,76 @@ import src.hardstorage as hardstorage
 import src.wca_function as wca_function
 from src.guild_access import both_guild_ids
 
-from datetime import datetime as dt
+from datetime import datetime as dt, timedelta, timezone
+
+REMINDER_REACTION = "🔔"
+REMINDER_MINUTES_BEFORE = 60
+WCA_COMPETITION_URL = "https://www.worldcubeassociation.org/competitions/{}"
+
+
+def _parse_wca_datetime(value):
+    if not isinstance(value, str) or not value.strip():
+        return None
+    value = value.strip()
+    if value.endswith("Z"):
+        value = f"{value[:-1]}+00:00"
+    try:
+        parsed = dt.fromisoformat(value)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _format_wca_datetime(value):
+    parsed = _parse_wca_datetime(value) if isinstance(value, str) else value
+    if parsed is None:
+        return None
+    return parsed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _ensure_announcer_data(row):
+    if not isinstance(row.get("data"), dict):
+        row["data"] = {}
+    return row["data"]
+
+
+def _ensure_registration_reminders(row):
+    data = _ensure_announcer_data(row)
+    reminders = data.get("registration_reminders")
+    if not isinstance(reminders, dict):
+        reminders = {}
+        data["registration_reminders"] = reminders
+    return reminders
+
+
+def _registration_reminder_from_comp(data, announcement_channel_id, announcement_message_id):
+    registration_open = _parse_wca_datetime(data.get("registration_open"))
+    if registration_open is None:
+        return None
+
+    now = dt.now(timezone.utc)
+    if registration_open <= now:
+        return None
+
+    remind_at = registration_open - timedelta(minutes=REMINDER_MINUTES_BEFORE)
+    country = str(data.get("country", "")).upper()
+    reminder_target = "si" if country == "SI" else "abroad"
+    comp_id = data.get("id")
+
+    return {
+        "competition_id": comp_id,
+        "competition_name": data.get("name", comp_id),
+        "competition_url": data.get("url") or WCA_COMPETITION_URL.format(comp_id),
+        "country": country,
+        "target": reminder_target,
+        "announcement_channel": str(announcement_channel_id),
+        "announcement_message": str(announcement_message_id),
+        "registration_open": _format_wca_datetime(registration_open),
+        "remind_at": _format_wca_datetime(remind_at),
+        "sent": False,
+    }
 
 
 def _people_field(singular, dual, plural, people):
@@ -113,6 +182,17 @@ class compCog(commands.Cog, name="comp command"):
                 await send_msg.add_reaction("🟢")
                 await send_msg.add_reaction("🟡")
                 await send_msg.add_reaction("🔴")
+                reminder = _registration_reminder_from_comp(data, ctx.channel.id, send_msg.id)
+                if reminder is not None:
+                    dedupe_row = db.load_second_table_idd(6)
+                    registration_reminders = _ensure_registration_reminders(dedupe_row)
+                    registration_reminders[data["id"]] = reminder
+                    try:
+                        db.save_second_table_idd(dedupe_row)
+                    except Exception as exc:
+                        print(f"[ERROR] manual registration reminder save failed for {data['id']}: {exc}")
+                    else:
+                        await send_msg.add_reaction(REMINDER_REACTION)
 
 
 def setup(bot: commands.Bot):

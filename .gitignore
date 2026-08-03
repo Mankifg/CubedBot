@@ -138,3 +138,4 @@ CubedBotExtention/*
 settings.json
 .DS_Store
 local-logs/
+AGENT_HANDOFF.md
