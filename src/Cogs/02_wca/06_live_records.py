@@ -454,7 +454,6 @@ def already_sent_record(dedupe_map, pending_map, target_key, record):
         print("[ERROR] record has no canonical dedupe key:", record)
         return True
 
-    print("checking record", target_key, record_key)
     already_sent = dedupe_map.get(target_key, [])
     pending_records = pending_map.get(target_key, {})
     sent_keys = {str(item) for item in already_sent}
@@ -466,7 +465,6 @@ def already_sent_record(dedupe_map, pending_map, target_key, record):
         str(key) in sent_keys or str(key) in pending_keys
         for key in equivalent_record_dedupe_keys(record)
     )
-    print(sent)
     return sent
 
 def mark_sent_record(dedupe_map, target_key, record):
@@ -477,7 +475,6 @@ def mark_sent_record(dedupe_map, target_key, record):
 
     already_sent = dedupe_map.setdefault(target_key, [])
     if record_key not in already_sent:
-        print("ins", target_key, record_key)
         already_sent.append(record_key)
 
 def mark_pending_record(pending_map, target_key, record, source):
@@ -491,7 +488,6 @@ def mark_pending_record(pending_map, target_key, record, source):
         pending_records = {}
         pending_map[target_key] = pending_records
     if record_key not in pending_records:
-        print("pending", target_key, record_key)
         pending_records[record_key] = {
             "created_at": int(time.time()),
             "source": source,
@@ -505,7 +501,6 @@ def clear_pending_record(pending_map, target_key, record):
 
     pending_records = pending_map.get(target_key)
     if isinstance(pending_records, dict) and record_key in pending_records:
-        print("clear pending", target_key, record_key)
         del pending_records[record_key]
     return record_key
 
@@ -833,7 +828,6 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
         dedupe_map = ensure_dedupe_map(dedupe_row, target_keys)
         pending_map = ensure_pending_map(dedupe_row, target_keys)
 
-        print(f"[INFO] wca live record check ({', '.join(target_keys)})")
         try:
             resp = requests.post(
                 url="https://live.worldcubeassociation.org/api/graphql",
@@ -884,9 +878,6 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
             print(f"[ERROR] wca live record check failed: {exc}")
             return
         
-      
-        print(len(resp))
-
         for records in grouped_record_batches(resp):
             try:
                 await self._process_wca_live_records(
@@ -913,8 +904,6 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
         pending_map,
         dedupe_row,
     ):
-        print(", ".join(str(record.get("id")) for record in records))
-
         for target in targets:
             target_key = str(target.get("key", "")).strip()
             if not target_key:
@@ -932,7 +921,6 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                 continue
 
             send_records = ordered_record_group(send_records)
-            print("RECORD FOUND !!!", send_records)
             q = build_record_group_embed(send_records)
 
             channel = target.get("channel")
@@ -1039,10 +1027,6 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                         records_cache[cache_key] = []
 
                 records = records_cache[cache_key]
-                print(
-                    f"[INFO] official WCA {tag} check ({target_key}, {region_name}): "
-                    f"{len(records)} current rows"
-                )
 
                 for record_group in grouped_record_batches(records):
                     try:
@@ -1086,7 +1070,6 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
             return
 
         send_records = ordered_record_group(send_records)
-        print(f"OFFICIAL {tag} FOUND !!!", send_records)
         q = build_record_group_embed(send_records)
 
         channel = target.get("channel")

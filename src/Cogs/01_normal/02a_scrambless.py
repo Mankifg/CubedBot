@@ -56,8 +56,6 @@ class scrum(commands.Cog, name="scrum command"):
 
         using_ids = POPULAR_EVENT_IDS + ALL_WEEKS[true_week_num]
 
-        print(using_ids)
-
         q = discord.Embed(
             title="Tedenski mešalni algoritmi",
             description="Generates using **pyTwistyScrambler**.",

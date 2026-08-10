@@ -43,23 +43,20 @@ class resultsCog(commands.Cog, name="results command"):
             return
 
         data = db.get_all_data()
-        
+
         week_all_data = functions.generate_all_important_data(data)
         # current weak data
         diffent_ids = functions.get_diff_ids_from_importantant_data(week_all_data)
         # every category
-        
+
         important_data = {}
 
         for idd in diffent_ids:
             idd_data = functions.extract_data_with_id_and_data(idd, week_all_data)
-            # print(f"{idd_data=}")
             important_data.update({idd: idd_data})
 
         final_data = {}
 
-        print("EXTRACTED")
-        
         for event_id, value in important_data.items():
 
             important_data[event_id] = functions.add_avg(important_data[event_id])
@@ -78,14 +75,10 @@ class resultsCog(commands.Cog, name="results command"):
                 if item["data"][0]["avg"] != -1
             ]
 
-            # print(f"{important_data[event_id]=}")
-
             final_data.update({event_id: important_data[event_id]})
 
         user_points = []
 
-        print("READY TO PRINT")
-        
         q = discord.Embed(
             title=f"🔵 🔵 🔵 REZULTATI {functions.this_week()} 🔵 🔵 🔵",
             color=discord.Color.blue(),
@@ -142,20 +135,17 @@ class resultsCog(commands.Cog, name="results command"):
             symbol = functions.place_symbol(i + 1)
 
             to_send += f"{i+1}. {d_name} - **{u['points']}**\n"
-            
+
         q.add_field(name="Lestvica", value=f"{to_send}")
         q.set_footer(text=bottom_msg)
 
         await ctx.send(embed=q)
 
         if add_points:
-            print("[INFO][01] Saving Points")
             functions.give_user_points(user_points)
 
 
-        print("[INFO][01] Getting all data")
         all_data = db.get_all_data()
-        print("[INFO][01_res] got all data")
         all_clean_data = []
         for user_data in all_data:
             user_id = user_data["user_id"]
@@ -168,8 +158,6 @@ class resultsCog(commands.Cog, name="results command"):
 
         all_clean_data = functions.sort_user_points(all_clean_data)
 
-        print("sorted")
-
         indx = 0
         cycle = 0
         while 1:
@@ -177,14 +165,13 @@ class resultsCog(commands.Cog, name="results command"):
                 break
             to_send = ""
             cycle += 1
-            
+
             for i in range(25):
                 if indx >= len(all_clean_data):
                     break
-                
+
                 u = all_clean_data[indx]
 
-                print(u)
                 await asyncio.sleep(0.25)
                 user_obj = await self.bot.fetch_user(u["user_id"])  # display name
                 d_name = user_obj.display_name
@@ -194,11 +181,10 @@ class resultsCog(commands.Cog, name="results command"):
                 to_send += f"{indx+1}. {d_name} {symbol} - **{u['points']}**\n"
 
                 indx += 1
-        
+
             q.add_field(name=f"Lestvica {cycle}", value=to_send)
-        
-        
-        print("[INFO][01_res] Sending")
+
+
         await ctx.send(embed=q)
 
 

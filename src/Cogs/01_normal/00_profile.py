@@ -6,8 +6,6 @@ from datetime import datetime as dt
 import src.db as db
 from src.guild_access import ensure_primary_guild, primary_guild_ids
 
-print("profile loaded")
-
 class profileCog(commands.Cog, name="profile command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot

@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands, tasks
-import requests 
+import requests
 
 from datetime import datetime as dt
 import datetime
@@ -9,7 +9,7 @@ import time
 import asyncio
 
 import src.db as db
-from src.hardstorage import * 
+from src.hardstorage import *
 
 import src.wca_function as wca_function
 from src.guild_access import both_guild_ids
@@ -51,8 +51,6 @@ for elem in raw_regions:
     ISO2.append(iso2.lower())
     REGIONS.append(f"{iso2.lower()} - {name}")
 
-print(ISO2)
-
 COUNTRY_NAMES = {}
 for elem in raw_regions:
     if not isinstance(elem, dict):
@@ -63,7 +61,6 @@ for elem in raw_regions:
         COUNTRY_NAMES[iso2.lower()] = name
 
 def convert_to_abbreviated_form(full_name):
-    print(full_name)
     name_parts = full_name.strip().split()
     if len(name_parts) < 2:
         raise ValueError("Full name must include at least a first name and a surname.")
@@ -83,7 +80,7 @@ def valid_time(time):
         dt.strptime(time, '%Y-%m-%d')
     except ValueError:
         return False
-    
+
     return True
 
 def _sl_count_form(count):
@@ -202,7 +199,6 @@ class userfinderCog(commands.Cog, name="userfinder command"):
 
     async def _build_userfinder_sections(self, nat, start_date, end_date, language="sl"):
         all_competitions = wca_function.list_of_events_from(start_date, end_date)
-        print(len(all_competitions), all_competitions)
 
         s_time = time.time()
         atLeastOneComp = False
@@ -211,8 +207,6 @@ class userfinderCog(commands.Cog, name="userfinder command"):
         send_single = ""
 
         for competition_id in all_competitions:
-            print("trying:", competition_id, end=" ")
-
             resp = None
             for _ in range(4):
                 try:
@@ -221,18 +215,15 @@ class userfinderCog(commands.Cog, name="userfinder command"):
                         REGISTERED_URL.format(competition_id),
                         timeout=4,
                     )
-                    print("trying ", resp.status_code)
                     if resp.status_code == 200:
                         break
                 except requests.RequestException:
-                    print("req timeout", competition_id)
                     resp = None
 
             if resp is None or resp.status_code != 200:
                 fetch_failures += 1
                 continue
 
-            print(resp.status_code)
             try:
                 resp = resp.json()
             except ValueError:
@@ -274,7 +265,6 @@ class userfinderCog(commands.Cog, name="userfinder command"):
 
     async def _scan_weekly_targets(self, targets, start_date, end_date):
         all_competitions = wca_function.list_of_events_from(start_date, end_date)
-        print(len(all_competitions), all_competitions)
 
         target_meta = {}
         for target in targets:
@@ -293,8 +283,6 @@ class userfinderCog(commands.Cog, name="userfinder command"):
         comp_name_cache = {}
 
         for competition_id in all_competitions:
-            print("trying:", competition_id, end=" ")
-
             resp = None
             for _ in range(4):
                 try:
@@ -303,11 +291,9 @@ class userfinderCog(commands.Cog, name="userfinder command"):
                         REGISTERED_URL.format(competition_id),
                         timeout=4,
                     )
-                    print("trying ", resp.status_code)
                     if resp.status_code == 200:
                         break
                 except requests.RequestException:
-                    print("req timeout", competition_id)
                     resp = None
 
             if resp is None or resp.status_code != 200:
@@ -443,8 +429,8 @@ class userfinderCog(commands.Cog, name="userfinder command"):
     async def before_weekly_userfinder(self):
         await self.bot.wait_until_ready()
     async def get_regions(ctx: discord.AutocompleteContext):
-        return REGIONS        
-    
+        return REGIONS
+
     @discord.command(
         name="userfinder",
         usage="(nationality) [start date: YYYY-MM-DD] [end date: YYYY-MM-DD]",
@@ -459,10 +445,9 @@ class userfinderCog(commands.Cog, name="userfinder command"):
         user_start_date:str=None,
         end_date:str=None,
         ):
-        
+
         nat = nationality.split("-")[0].strip()
         if nat not in ISO2:
-            print(nat)
             language = self._resolve_manual_language(ctx.guild_id)
             if language == "sl":
                 error = discord.Embed(title="Region should be picked from one of the provided ones",
@@ -476,13 +461,13 @@ class userfinderCog(commands.Cog, name="userfinder command"):
             return
         language = self._resolve_manual_language(ctx.guild_id)
         await ctx.defer()
-        
+
         start_date = dt.now()
         if valid_time(user_start_date):
             start_date = dt.strptime(user_start_date, '%Y-%m-%d')
-            
+
         if end_date is None:
-            end_date = start_date + timedelta(days=NUMBER_OF_DAYS_TO_SEARCH)  
+            end_date = start_date + timedelta(days=NUMBER_OF_DAYS_TO_SEARCH)
         elif end_date.isnumeric():
             end_date = start_date + timedelta(days=int(end_date))
         elif not valid_time(end_date):
@@ -492,7 +477,7 @@ class userfinderCog(commands.Cog, name="userfinder command"):
 
         all_competitions, send_obj, elapsed = await self._build_userfinder_sections(nat, start_date, end_date, language=language)
         copy = _weekly_copy(language, nat)
-        
+
         q = discord.Embed(title=copy["title"])
         q.add_field(name=copy["period"],
                     value=f"<t:{int(start_date.timestamp())}:D> - <t:{int(end_date.timestamp())}:D>")
@@ -501,19 +486,17 @@ class userfinderCog(commands.Cog, name="userfinder command"):
             name=copy["stats"],
             value=copy["stats_value"](len(all_competitions), elapsed),
         )
-        print("ready to send")
         await ctx.respond(embed=q)
-        print("send")
-        
+
         if (len(send_obj) > 1):
             for i in range(1,len(send_obj)):
                 send_single = send_obj[i]
-                
+
                 q = discord.Embed(title=copy["part"](i + 1))
                 q.add_field(name=".",value=send_single)
                 await ctx.send(embed=q)
 
-            
-    
+
+
 def setup(bot: commands.Bot):
     bot.add_cog(userfinderCog(bot))

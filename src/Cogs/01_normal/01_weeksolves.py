@@ -47,7 +47,6 @@ class weeksolvesCog(commands.Cog, name="weeksolves command"):
 
         if not f:
             #! Error
-            print("Not founddd")
             week_time = []
         else:
             week_time = user_data["data"]["solves"][x]["data"]
@@ -64,11 +63,6 @@ class weeksolvesCog(commands.Cog, name="weeksolves command"):
         else:
             for elem in week_time:
                 # {'id': '333', 'data': ['1', '1', '1', '1', '1']}
-
-                # *print(f"elem - {elem}")
-                # *print(elem["id"])
-                # *print(elem["data"])
-                # *print("=" * 10)
 
                 q.add_field(
                     name=f"Disciplina: **{DICTIONARY.get(elem['id'])}**, id: {elem['id']}",

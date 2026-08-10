@@ -46,7 +46,7 @@ class OnCommandErrorCog(commands.Cog, name="on command error"):
         elif isinstance(error, NotOwner):
             await ctx.send(error)
         else:
-            print(error)
+            print(f"[ERROR] command error: {error}")
 
 
 def setup(bot):

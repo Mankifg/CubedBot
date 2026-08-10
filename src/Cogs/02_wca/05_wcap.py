@@ -3,7 +3,7 @@ from discord.ext import commands
 import requests, json
 
 import src.db as db
-from src.hardstorage import * 
+from src.hardstorage import *
 import src.wca_function as wca_function
 import src.functions as functions
 from src.guild_access import both_guild_ids
@@ -102,58 +102,47 @@ class wcapCog(commands.Cog, name="wcap command"):
             title=f":flag_{country.lower()}: {name}", description=f"ID: {idd}",
             color=0xFFFFF
         )
-        
+
         if picture_url:
             q.set_thumbnail(url=picture_url)
         #? q.set_author(name="2n2n", icon_url=picture_url) TOO small
-        
+
         '''q.add_field(
             name=f"Medals: {medals['gold']} 🥇{medals['silver']} 🥈{medals['bronze']}🥉",
-            value=f"**{num_of_comps}** Competitions", 
+            value=f"**{num_of_comps}** Competitions",
             #({num_of_championships} championships)",
             inline=False,
         )'''
-        
+
         q.add_field(name=f"**{num_of_comps}** Competitions",value="_ _")
-        
+
         u_data = {}
-        
-        
-        
+
+
+
         for elem in user_data["rank"]["singles"]:
             # elem = {'eventId': event, 'best': int , 'rank': {'world': -1, 'continent': -1, 'country': -1}}
             eventId = elem["eventId"]
             best_time = elem["best"]
             rank = elem["rank"]
-                
-            print(best_time,"with info ",eventId)  
-            
+
             best_time = functions.convert_to_human_frm(best_time,eventId)
-            
+
             u_data.update({eventId: {"single": best_time, "singleRank": rank}})
-        
-        print("aaa")            
 
         for elem in user_data["rank"]["averages"]:
             # elem = {'eventId': event, 'best': int , 'rank': {'world': -1, 'continent': -1, 'country': -1}}
             eventId = elem["eventId"]
             best_time = elem["best"]
             rank = elem["rank"]
-            
-            print(best_time,"with info ",eventId)  
+
             best_time = functions.convert_to_human_frm(best_time)
-            print(best_time)
-            
+
             u_data[eventId].update({"avg": best_time, "avgRank": rank})
-            
-            
-        #print(u_data)
         u_data = functions.sort_weeky_data(u_data)
-            
+
         table = []
-        print(u_data.keys())
         u_data = dict(sorted(u_data.items(), key=lambda item: custom_sort_key(item[0])))
-        print(u_data.keys())
         table.append(["Event", "Single", "Average"])
 
         for eventId in u_data:
@@ -173,7 +162,7 @@ class wcapCog(commands.Cog, name="wcap command"):
             new_table = new_table + f"| {line[0].center(max_len[0])}| {line[1].center(max_len[1])} | {line[2].center(max_len[2])} |\n"
 
         q.add_field(name="PRs", value=f"```\n{new_table}```", inline=False)
-        
+
         await ctx.respond(embed=q)
 
 

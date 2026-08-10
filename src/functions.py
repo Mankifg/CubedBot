@@ -2,13 +2,13 @@ import time
 from datetime import datetime as dt
 import json
 
-import src.hardstorage as hs 
+import src.hardstorage as hs
 import src.functions as functions
 import src.db as db
 
 
 class SkillIssue(Exception):
-    print(Exception)
+    pass
 
 
 def avg_of(solves, a_type):
@@ -31,15 +31,13 @@ def avg_of(solves, a_type):
     else:
         raise SkillIssue(f"it appears that {a_type} isn't in any group")
 
-    print(f"Calculating average of {solves} with mode: {a_type},{averge_mode}")
-
     # average type
     # ? 1. ao5
     # ? 2. bo3
     # ? 3. mo3
     if averge_mode == "bo1":
         return solves[0]
-    
+
     hold_solves = []
     for sol in solves:
         if (type(sol) == int):
@@ -47,13 +45,13 @@ def avg_of(solves, a_type):
         else:
             hold_solves.append(-1)
     solves = hold_solves[:]
-    
-    
+
+
     if averge_mode == "bo3" or averge_mode == "bo5":
         solves = list(filter(lambda a: a != -1, solves))
         if len(solves) == 0:
             return -1
-        
+
         return min(solves)
 
     elif averge_mode == "ao5":
@@ -65,11 +63,10 @@ def avg_of(solves, a_type):
 
             solves.pop(0)  # best
             solves.pop(-1)  # worst
-        
+
             #return round(sum(solves) / len(solves), 2)
-            
+
         elif n_of_dnfs == 1:
-            print("####",solves)
             solves.sort()
 
             solves.remove(-1) # the DNF one
@@ -78,14 +75,12 @@ def avg_of(solves, a_type):
             #return round(sum(solves) / len(solves), 2)
         else:
             return -1
-        
+
         try:
             real_avg = sum(solves) / len(solves)
-            print(real_avg,round(real_avg))
             return round(real_avg)
         except ZeroDivisionError:
-            print(solves)
-            print("ERROR ZeroDivisionError")
+            print("[ERROR] ZeroDivisionError while calculating ao5 average")
             return -1
 
     elif averge_mode == "mo3":
@@ -96,14 +91,12 @@ def avg_of(solves, a_type):
         if -1 in solves:
             return -1
 
-        
+
         try:
             real_avg = sum(solves) / len(solves)
-            print(real_avg,round(real_avg))
             return round(real_avg)
         except ZeroDivisionError:
-            print(solves)
-            print("ERROR ZeroDivisionError")
+            print("[ERROR] ZeroDivisionError while calculating mo3 average")
             return -1
 
     else:
@@ -121,7 +114,7 @@ def convert_to_centisec(time_str):
         return -1
     elif time_str in [-2,"-2","dns"]:
         return -2
-    
+
     try:
         if ':' in time_str:
             parts = time_str.split(':')
@@ -134,10 +127,10 @@ def convert_to_centisec(time_str):
         else:
             total_centiseconds = float(time_str) * 100
         return int(total_centiseconds)
-            
+
     except:
         print(f"[ERROR] Parsing time went wrong: {time_str}")
-    
+
 
 
 def convert_to_human_frm(centisec,eventId="333"):
@@ -154,9 +147,9 @@ def convert_to_human_frm(centisec,eventId="333"):
         c_time = int(mbld[2:7])
         c_time = functions.convert_to_human_frm(c_time*100)
         mbld = f"{solved}/{all_cubes} {c_time}"
-        
+
         return mbld
-    
+
     elif eventId == "333fm":
         return str(centisec)
 
@@ -166,7 +159,7 @@ def convert_to_human_frm(centisec,eventId="333"):
     centisec %= 6000
     seconds = centisec // 100
     centisec %= 100
-    
+
     if hours > 0:
         return f"{hours}:{minutes:02}:{seconds:02}"
     elif minutes >= 10:
@@ -189,7 +182,7 @@ def db_times_to_user_format(array_of_times):
 
 def parse_times(times, event_id):
     # if event id in mo3 or bo3 only 3
-    
+
     if event_id in hs.AO5:
         averge_mode = "ao5"
     #elif event_id in hs.BO3:
@@ -200,7 +193,7 @@ def parse_times(times, event_id):
         averge_mode = "bo1+5"
     else:
         raise SkillIssue(f"it appears that {event_id} isn't in any group")
-    
+
     times = times.lower()
     times = times.replace(" ", "")
 
@@ -218,7 +211,7 @@ def parse_times(times, event_id):
 
     if len(t) > 5:
         t = t[0:5]
-        
+
     if averge_mode == "mo3" or averge_mode == "bo3":
         t = t[0:3]
 
@@ -226,12 +219,9 @@ def parse_times(times, event_id):
         for _ in range(5 - len(t)):
             t.append(-1)
 
-    print("parsed times", t)
-
     for i in range(len(t)):
         t[i] = convert_to_centisec(t[i])
 
-    print(t)
     return t
 
 
@@ -249,7 +239,6 @@ def this_week():
 
 def find_in_array_with_id(arry, id, what):
     for ele in arry:
-        # print(type(ele.get(what)),type(id))
         if ele.get(what) == id:
             return ele
 
@@ -257,8 +246,6 @@ def find_in_array_with_id(arry, id, what):
 
 
 def combine_two(list1, list2):  # a2 is primary
-    # print(list1,list2)
-
     if list1 == None:
         list1 = []
 
@@ -270,17 +257,14 @@ def combine_two(list1, list2):  # a2 is primary
     for ele in list2:
         new.append(ele)
 
-    # print("new ","*"*10, new)
     if not list1 == None:
         for i in range(len(list1)):
             ele = list1[i]
-            # print(f"{ele=}")
             # {'id': '333', 'data': [10, 20, 40, 55, 100]}
 
             unique = True
             for i in range(len(new)):
                 v = new[i]
-                # print(v,ele)
                 if v["id"] == ele["id"]:
                     unique = False
                     break
@@ -288,33 +272,10 @@ def combine_two(list1, list2):  # a2 is primary
             if unique:
                 new.append(ele)
 
-    # print("not final",new)
-
-    # rint("final" , new)
-
     return new
 
 
-"""for item in list1:
-    merged_dict[item["id"]] = item
-
-# Merge list2 into merged_dict, overriding if "id" already exists
-for item in list2:
-    merged_dict[item["id"]] = item
-
-# Convert the values of merged_dict back to a list
-merged_list = list(merged_dict.values())
-
-print("*"*10)
-print(list1,list2,merged_dict)
-
-return merged_dict"""
-
-
 def arry_to_human_frm(arry, event_id):
-
-    print(f"Readify arry of solves: {arry}")
-
     # ? [10, 20, 30, 40, 50] 5x time in centisec
 
     avg = avg_of(arry[:], event_id)
@@ -322,7 +283,6 @@ def arry_to_human_frm(arry, event_id):
         arry = arry[0:3]
 
     for i in range(len(arry)):
-        print(arry[i], convert_to_human_frm(arry[i]),event_id)
         arry[i] = convert_to_human_frm(arry[i],event_id)
 
     r = f"{convert_to_human_frm(avg,event_id)} | {', '.join(arry)}"
@@ -382,12 +342,10 @@ def extract_data_with_id_and_data(id, data):
 
 
 def add_avg(data):
-    print("ADDING AVG")
     for i in range(len(data)):
         data[i]["data"][0]["avg"] = avg_of(
             data[i]["data"][0]["data"][:], data[i]["data"][0]["id"]  #! [:]
         )
-    print("AVG ADDED")
     return data
 
 
@@ -449,7 +407,7 @@ def any_object_same(a1,a2):
     for idd in a2:
         if idd in a1:
             return True
-        
+
     return False
 
 def true_week_num():
@@ -458,52 +416,54 @@ def true_week_num():
     week_data = week_data["data"]
     c_week = week_data["data"]
     all_weeks = week_data["old"]
-    
+
     ind = int(all_weeks.index(c_week) % 3)
-    print(ind)
     return ind
 
 
 def sort_weeky_data(data):
     # [(id:x,data:y),(id:x,data:y)]
-    
+
     new = {}
-    
+
     categories = list(data)
-    
+
     for cat_id in hs.CATEGORIES_SORTED:
         if cat_id in categories:
             new.update({cat_id:data[cat_id]})
-    
+
     if len(data) != len(new):
-        print("Error",data)
-        for elem in data:
-            if not elem in hs.CATEGORIES_SORTED:
-                new.update({elem:data[elem]})
-    
+        unknown_event_ids = [
+            elem
+            for elem in data
+            if elem not in hs.CATEGORIES_SORTED
+        ]
+        if unknown_event_ids:
+            print(f"[WARN] unknown TT event ids in sort_weeky_data: {unknown_event_ids}")
+        for elem in unknown_event_ids:
+            new.update({elem:data[elem]})
+
     return new
 
 def fix_same_avg(data):
     #[{'user_id': /, 'data': [{'id': cat_id, 'data': [100, 200, 300, -1, -1], 'avg': float}]}]
-    
+
     for i in range(len(data)-1):
         p1 = data[i]["data"][0]
         p2 = data[i+1]["data"][0]
-        
-        
+
+
         if p1["avg"] == p2["avg"]:
-            print(p1["avg"], p2["avg"])
-            
             minP1 = p1["data"]
             minP2 = p2["data"]
-            
+
             minP1 = [x for x in minP1 if x != -1]
             minP2 = [x for x in minP2 if x != -1]
-            
+
             minP1 = min(minP1)
             minP2 = min(minP2)
-            
+
             if minP1 > minP2:
                 data[i],data[i+1] = data[i+1],data[i]
-                
+
     return data

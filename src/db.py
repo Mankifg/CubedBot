@@ -40,7 +40,6 @@ def create_account(id):
     if account_with_id_exists(id):
         return True
     else:
-        print("a")
         data = {
             "user_id": id,
             "wca_id": "",

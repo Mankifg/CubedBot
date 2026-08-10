@@ -27,7 +27,7 @@ class MyView(discord.ui.View):
                 MyModal(id="classic", user_id=interaction.user.id)
             )
 
-   
+
 
 
 class MyModal(discord.ui.Modal):
@@ -43,20 +43,17 @@ class MyModal(discord.ui.Modal):
             solves_data, functions.this_week(), "week"
         )
         # none if first inp
-        print(f"this week:\n{week_times}")
 
         used_ids = []
 
         all_week_data = db.load_second_table_idd(1)
         using_ids = all_week_data["data"]["current"]["events"]
-        
+
 
         if week_times is not None:
             actual_week_data = week_times["data"]
         else:
             actual_week_data = []
-
-        print(f"{actual_week_data=}")
 
         for i in range(len(using_ids)):
             event_id = using_ids[i]
@@ -86,10 +83,10 @@ class MyModal(discord.ui.Modal):
         l_fields = len(self.children)  # len_field
 
         '''
-        self.childer[i].label 
+        self.childer[i].label
          .value
         '''
-        
+
         event_ids = []
         data = []
 
@@ -107,33 +104,20 @@ class MyModal(discord.ui.Modal):
         week_time = functions.find_in_array_with_id(
             solves_data, functions.this_week(), "week"
         )
-        print("A" * 10)
-        print(solves_data)
-        print(week_time)
 
         if week_time is None:
             week_time = {"data": None}
             week_time["data"] = None
-            
-        print(data)
+
         comb_data = functions.combine_two(week_time["data"], data)
 
         #comb_data = functions.sort_weeky_data(comb_data)
-        print(comb_data)
-
-        print(".")
         packaged_data = {"week": functions.this_week(), "data": comb_data}
-
-        print(packaged_data)
-        print("before")
-        print(user_data["data"]["solves"])
-        print("after")
 
         got = False
         for i in range(len(user_data["data"]["solves"])):
             if user_data["data"]["solves"][i]["week"] == packaged_data["week"]:
                 x = i
-                print("found")
                 got = True
                 break
 
@@ -143,9 +127,7 @@ class MyModal(discord.ui.Modal):
             x = i
             user_data["data"]["solves"].append(packaged_data)
 
-        # print(user_data["data"]["solves"])
         db.save_user_data(user_data)
-        print("saving", user_data)
 
         c_week = functions.this_week()
         # YYYY-WN week num
@@ -160,14 +142,10 @@ class MyModal(discord.ui.Modal):
 
         if not f:
             #! Error
-            print("Not founddd")
+            print("[ERROR] submitted solves were not found after saving")
             week_time = []
         else:
             week_data = user_data["data"]["solves"][x]["data"]
-
-        print("??" * 5)
-        print(week_data)
-        print("??" * 5)
 
         userObj = interaction.user
 
@@ -183,11 +161,6 @@ class MyModal(discord.ui.Modal):
         else:
             for elem in week_data:
                 # {'id': '333', 'data': ['1', '1', '1', '1', '1']}
-
-                # *print(f"elem - {elem}")
-                # *print(elem["id"])
-                # *print(elem["data"])
-                # *print("=" * 10)
 
                 q.add_field(
                     name=f"Disciplina: **{DICTIONARY.get(elem['id'])}**, id: {elem['id']}",

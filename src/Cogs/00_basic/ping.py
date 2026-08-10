@@ -5,6 +5,9 @@ import subprocess
 from src.guild_access import both_guild_ids
 
 
+BUILD_COMMITS_URL = "https://github.com/Mankifg/CubedBot/commits/main/"
+
+
 def _current_version():
     try:
         return subprocess.check_output(
@@ -13,6 +16,10 @@ def _current_version():
         ).strip()
     except Exception:
         return "unknown"
+
+
+def _build_version_link(version):
+    return f"[`{version}`]({BUILD_COMMITS_URL})"
 
 
 class PingCog(commands.Cog, name="pping command"):
@@ -30,7 +37,10 @@ class PingCog(commands.Cog, name="pping command"):
     async def ping(self, ctx):
         await ctx.defer()
         ping = self.bot.latency * 1000
-        await ctx.respond(f"🏓 Pong !  `{int(ping)} ms`\n⚙️ Build: `{self.version}`")
+        await ctx.respond(
+            f"🏓 Pong !  `{int(ping)} ms`\n⚙️ Build: {_build_version_link(self.version)}",
+            suppress=True,
+        )
 
 
 def setup(bot: commands.Bot):

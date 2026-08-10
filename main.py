@@ -36,17 +36,20 @@ bot = commands.Bot(
     owner_id=650756055390879757,
 )
 bot.startup_ping_sent = False
+BUILD_COMMITS_URL = "https://github.com/Mankifg/CubedBot/commits/main/"
 
 setup_time = time.time()
 
 if __name__ == "__main__":
+    loaded_cogs = 0
     for path in Path("./src/Cogs").rglob("*.py"):
 
         p = str(path)
         p = p.replace("\\", ".")
         p = p.replace("/", ".")
-        print(p)
         bot.load_extension(f"{p[:-3]}")
+        loaded_cogs += 1
+    print(f"Loaded {loaded_cogs} cogs")
 
 boot_time = time.time()
 
@@ -59,6 +62,10 @@ def _current_version():
         ).strip()
     except Exception:
         return "unknown"
+
+
+def _build_version_link(version):
+    return f"[`{version}`]({BUILD_COMMITS_URL})"
 
 
 async def send_startup_ping():
@@ -74,7 +81,7 @@ async def send_startup_ping():
             channel = await bot.fetch_channel(int(channel_id))
 
         version = _current_version()
-        await channel.send(f"⚙️ Build: `{version}`")
+        await channel.send(f"⚙️ Build: {_build_version_link(version)}", suppress=True)
     except Exception as exc:
         print(f"[WARN] Startup ping failed: {exc}")
 

@@ -88,7 +88,7 @@ def generate_scramble(cid):
         return ret
 
     else:
-        print("No Scrambler found.")
+        print(f"[WARN] no scrambler found for {cid}")
 
 
 mod_roles = db.load_second_table_idd(2)  # role
@@ -129,11 +129,9 @@ class scramblesCog(commands.Cog, name="scrambles command"):
             await ctx.send(embed=q, ephemeral=True)
             return
 
-     
+
         all_week_data = db.load_second_table_idd(1)
         using_ids = all_week_data["data"]["current"]["events"]
-
-        print(using_ids)
 
         q = discord.Embed(
             title="Tedenski mešalni algoritmi",
@@ -142,16 +140,15 @@ class scramblesCog(commands.Cog, name="scrambles command"):
         )
 
         using_ids_in_a_arry = [using_ids]
-        
+
         for al_ids in using_ids_in_a_arry:
             q = discord.Embed(
             title="Tedenski mešalni algoritmi",
             description="Generates using **pyTwistyScrambler**.",
             color=0xFFFFF,
             )
-            
+
             for category_id in al_ids:
-                print(category_id)
                 cat_name = DICTIONARY.get(category_id)
                 repeat = hardstorage.category_attempts(category_id)
 
@@ -165,34 +162,34 @@ class scramblesCog(commands.Cog, name="scrambles command"):
                 scramb = generate_scramble(category_id)
                 scrambles = f"{scrambles}[E] {scramb}\n"
                 data.append(["[E]",scramb])
-                           
-        
+
+
                 if len(scrambles) < 1024:
 
                     q.add_field(
-                        name=f"{cat_name}", 
-                        value=f"```ini\n{scrambles}```", 
+                        name=f"{cat_name}",
+                        value=f"```ini\n{scrambles}```",
                         inline=False
                     )
                 else:
                     for i in range(len(data)):
                         prefix = data[i][0]
                         actual_data = data[i][1]
-                        
+
                         if i == 0:
                             name_disp = cat_name
                         else:
                             name_disp = "_ _"
-                        
+
                         q.add_field(
                             name=name_disp,
-                            value=f"```ini\n{prefix} {actual_data}```", 
+                            value=f"```ini\n{prefix} {actual_data}```",
                             inline=False
                         )
-                        
+
 
             await ctx.send(embed=q)
-            
+
 
 def setup(bot: commands.Bot):
     bot.add_cog(scramblesCog(bot))

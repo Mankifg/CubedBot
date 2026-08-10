@@ -2,6 +2,39 @@ from .storage import *
 import calendar
 from datetime import date
 
+
+def find_by_date_range(start, end):
+    params = {
+        "include_cancelled": "false",
+        "sort": "start_date,end_date,name",
+        "start": start.isoformat(),
+        "end": end.isoformat(),
+        "page": 1,
+    }
+
+    data = []
+    while True:
+        try:
+            resp = requests.get(url=COMPETITION_INDEX_API, params=params, timeout=20)
+        except requests.RequestException as exc:
+            print(f"[WARN] competition index fetch failed for {start} - {end}, page {params['page']}: {exc}")
+            break
+        if resp.status_code != 200:
+            print(f"[WARN] competition index returned {resp.status_code} for {start} - {end}, page {params['page']}")
+            break
+        try:
+            page_data = resp.json()
+        except ValueError as exc:
+            print(f"[WARN] competition index JSON failed for {start} - {end}, page {params['page']}: {exc}")
+            break
+        if not isinstance(page_data, list) or not page_data:
+            break
+        data.extend(page_data)
+        params["page"] += 1
+
+    return data
+
+
 def find_by_date(dan,mesec,leto):
     if mesec and mesec > 0:
         if dan and dan > 0:
@@ -15,26 +48,7 @@ def find_by_date(dan,mesec,leto):
         start = date(leto, 1, 1)
         end = date(leto, 12, 31)
 
-    params = {
-        "include_cancelled": "false",
-        "sort": "start_date,end_date,name",
-        "start": start.isoformat(),
-        "end": end.isoformat(),
-        "page": 1,
-    }
-
-    data = []
-    while True:
-        resp = requests.get(url=COMPETITION_INDEX_API, params=params)
-        if resp.status_code != 200:
-            break
-        page_data = resp.json()
-        if not isinstance(page_data, list) or not page_data:
-            break
-        data.extend(page_data)
-        params["page"] += 1
-
-    return data
+    return find_by_date_range(start, end)
 
 def distance_suitable(lat,lon):
     if lat > LAT_RANGE[0] and lat < LAT_RANGE[1] and \

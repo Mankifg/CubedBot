@@ -3,6 +3,7 @@ from discord.ext import commands
 
 from discord.ext import tasks
 import asyncio
+import calendar
 from datetime import datetime as dt, timedelta, timezone
 
 import src.wca_function as wca_function
@@ -13,6 +14,7 @@ LAT,LON = 46.0569, 14.5058
 REMINDER_REACTION = "🔔"
 REMINDER_MINUTES_BEFORE = 60
 REGISTRATION_REMINDER_CHECK_SECONDS = 60
+ANNOUNCER_LOOKAHEAD_MONTHS = 12
 WCA_COMPETITION_URL = "https://www.worldcubeassociation.org/competitions/{}"
 
 
@@ -143,21 +145,28 @@ class annouceCog(commands.Cog, name="annouce command"):
         all_comps = []
         c_month = dt.now().month
         c_year = dt.now().year
-        print(c_month,c_year)
-        
-        for i in range(6):
-            month = c_month + i
-            year = c_year
-            if month > 12:
-                month = month % 12
-                year = year + 1
-            
-            data = await asyncio.to_thread(wca_function.find_by_date, 0, month, year)
-            
-            
-            if data is not None:
-                all_comps.extend(data)
-            
+
+        range_start = dt(c_year, c_month, 1).date()
+        end_month = c_month + ANNOUNCER_LOOKAHEAD_MONTHS - 1
+        end_year = c_year
+        while end_month > 12:
+            end_month -= 12
+            end_year += 1
+        range_end = dt(
+            end_year,
+            end_month,
+            calendar.monthrange(end_year, end_month)[1],
+        ).date()
+
+        try:
+            data = await asyncio.to_thread(wca_function.find_by_date_range, range_start, range_end)
+        except Exception as exc:
+            print(f"[ERROR] announcer fetch failed for {range_start} - {range_end}: {exc}")
+            data = []
+
+        if data is not None:
+            all_comps.extend(data)
+
         distanced_comps = wca_function.filter_by_distance(all_comps)
         special_comps = [
             comp for comp in all_comps
@@ -169,33 +178,40 @@ class annouceCog(commands.Cog, name="annouce command"):
             if comp["id"] not in distanced_comp_ids:
                 merged_comps.append(comp)
                 distanced_comp_ids.add(comp["id"])
-        
+        print(
+            "[INFO] announcer scan: "
+            f"{len(all_comps)} WCA comps, "
+            f"{len(distanced_comps)} nearby, "
+            f"{len(special_comps)} special, "
+            f"{len(merged_comps)} candidates"
+        )
+
         dedupe_row = db.load_second_table_idd(6)
         already_printed_comps = _ensure_announcer_dedupe(dedupe_row)
         registration_reminders = _ensure_registration_reminders(dedupe_row)
-        
+
         channel = db.load_second_table_idd(5)["data"]["announcer_channel"]
         channel = int(channel)
         ch = self.bot.get_channel(channel)
         if ch is None:
             print(f"[ERROR] announcer_channel not found: {channel}")
             return
-        
+
         final_comps = []
-        
+
         for comp in merged_comps:
             comp_id = comp["id"]
-            
+
             if not comp_id in already_printed_comps:
                 final_comps.append(comp)
-                
-        
+
+
         send = []
         for comp in final_comps:
-            
+
             comp_id = comp["id"]
             success, data = await asyncio.to_thread(wca_function.get_comp_data, comp_id)
-            
+
             if not success:
                 continue
             else:
@@ -213,15 +229,15 @@ class annouceCog(commands.Cog, name="annouce command"):
                     end_date,
                     data["date"]["numberOfDays"],
                 )
-                    
+
                 q.add_field(name="Datum", value=date, inline=False)
-                
+
                 #*********
                 events = data["events"]
-                
+
                 for i in range(len(events)):
                     events[i] = hardstorage.SHORT_DICTIONARY.get(events[i])
-                
+
                 q.add_field(name="Discipline", value=", ".join(events), inline=False)
 
                 if not is_special_fmc:
@@ -240,15 +256,14 @@ class annouceCog(commands.Cog, name="annouce command"):
                         data["wcaDelegates"],
                     )
                     q.add_field(name=delegate_label, value=delegate_value, inline=True)
-                    
+
                     q.add_field(name="Prizorišče", value=f"{data['venue']['name']}\n{data['venue']['address']}", inline=False,)
 
                 if data["externalWebsite"]:
                     q.add_field(name="Spletna stran", value=data["externalWebsite"], inline=False)
 
             send_msg = await ch.send(embed=q)
-            print("send",comp_id)
-            
+
             await send_msg.add_reaction("🟢")
             await send_msg.add_reaction("🟡")
             await send_msg.add_reaction("🔴")
@@ -258,16 +273,16 @@ class annouceCog(commands.Cog, name="annouce command"):
                 registration_reminders[comp_id] = reminder
 
             send.append(comp_id)
-            
+
             await asyncio.sleep(5)
-            
-        
-        
+
+
+
         for comp_id in send:
             if not comp_id in already_printed_comps:
                 already_printed_comps.append(comp_id)
-                
-        
+
+
         db.save_second_table_idd(dedupe_row)
 
     @tasks.loop(seconds=REGISTRATION_REMINDER_CHECK_SECONDS)
@@ -322,6 +337,9 @@ class annouceCog(commands.Cog, name="annouce command"):
             users = await self._reminder_reaction_users(reminder)
             if users is None:
                 continue
+            reminder["subscriber_count"] = len(users)
+            reminder["subscriber_ids"] = [str(user.id) for user in users]
+            reminder["subscriber_names"] = [str(user) for user in users]
             if not users:
                 reminder["sent"] = True
                 reminder["sent_at"] = _format_wca_datetime(now)
@@ -406,25 +424,66 @@ class annouceCog(commands.Cog, name="annouce command"):
         if channel is None:
             return None
 
+        best_users = []
+        for attempt in range(2):
+            try:
+                message = await channel.fetch_message(int(reminder.get("announcement_message")))
+            except discord.NotFound:
+                return []
+            except Exception as exc:
+                print(f"[ERROR] could not fetch announcement message for reminder: {exc}")
+                return None
+
+            for reaction in message.reactions:
+                if str(reaction.emoji) != REMINDER_REACTION:
+                    continue
+
+                all_users = await self._reaction_users(reaction)
+                users = [
+                    user
+                    for user in all_users
+                    if not getattr(user, "bot", False)
+                ]
+                best_users = users
+
+                if len(all_users) >= reaction.count:
+                    return users
+
+                print(
+                    "[WARN] reminder reaction user count mismatch for "
+                    f"{reminder.get('competition_id')}: "
+                    f"reaction.count={reaction.count}, api_users={len(all_users)} "
+                    f"(attempt {attempt + 1}/2)"
+                )
+                await asyncio.sleep(3)
+                break
+            else:
+                return []
+
+        return best_users
+
+    async def _reaction_users(self, reaction):
+        users_by_id = {}
+
+        async def collect(**kwargs):
+            async for user in reaction.users(**kwargs):
+                users_by_id[user.id] = user
+
         try:
-            message = await channel.fetch_message(int(reminder.get("announcement_message")))
-        except discord.NotFound:
-            return []
+            await collect()
         except Exception as exc:
-            print(f"[ERROR] could not fetch announcement message for reminder: {exc}")
-            return None
+            print(f"[ERROR] could not fetch reaction users: {exc}")
+            raise
 
-        for reaction in message.reactions:
-            if str(reaction.emoji) != REMINDER_REACTION:
-                continue
+        reaction_type = getattr(discord, "ReactionType", None)
+        burst_type = getattr(reaction_type, "burst", None) if reaction_type is not None else None
+        if burst_type is not None:
+            try:
+                await collect(type=burst_type)
+            except Exception as exc:
+                print(f"[WARN] could not fetch burst reaction users: {exc}")
 
-            users = []
-            async for user in reaction.users():
-                if not getattr(user, "bot", False):
-                    users.append(user)
-            return users
-
-        return []
+        return list(users_by_id.values())
 
     async def _fetch_channel(self, channel_id, label):
         try:
@@ -461,12 +520,12 @@ class annouceCog(commands.Cog, name="annouce command"):
                 everyone=False,
             ),
         )
-    
+
     @check.before_loop
     @registration_reminder_check.before_loop
     async def before_send_message(self):
         await self.bot.wait_until_ready()
-        
+
 
 def setup(bot: commands.Bot):
     bot.add_cog(annouceCog(bot))

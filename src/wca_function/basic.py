@@ -103,7 +103,7 @@ def get_html_data(url):
 
         return html_code
     else:
-        print(f"Failed to retrieve the webpage. Status code: {response.status_code}")
+        print(f"[WARN] failed to retrieve webpage {url}. Status code: {response.status_code}")
         return None
 
 def get_picture_url(wca_id):
