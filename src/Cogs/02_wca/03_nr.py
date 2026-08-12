@@ -27,6 +27,7 @@ EVENT_LABEL_TO_ID = {
     "Pyra": "pyram",
     "Skewb": "skewb",
     "Sq1": "sq1",
+    "FTO": "fto",
     "4BLD": "444bf",
     "5BLD": "555bf",
     "MBLD": "333mbf",
@@ -50,6 +51,7 @@ WCA_EVENT_NAMES = {
     "pyram": "Pyraminx",
     "skewb": "Skewb",
     "sq1": "Square-1",
+    "fto": "Face-Turning Octahedron",
     "444bf": "4x4x4 Blindfolded",
     "555bf": "5x5x5 Blindfolded",
 }
@@ -69,6 +71,7 @@ ALL_EVENT_ORDER = [
     "pyram",
     "skewb",
     "sq1",
+    "fto",
     "444bf",
     "555bf",
     "333mbf",

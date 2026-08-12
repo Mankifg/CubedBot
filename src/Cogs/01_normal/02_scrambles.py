@@ -22,6 +22,7 @@ from pyTwistyScrambler import (
     pyraminxScrambler,
     clockScrambler,
     skewbScrambler,
+    ftoScrambler,
 )
 
 def category_attempts(cid): #catgory id
@@ -79,6 +80,9 @@ def generate_scramble(cid):
     elif cid == "sq1":
         return squareOneScrambler.get_WCA_scramble()
 
+    elif cid == "fto":
+        return ftoScrambler.get_random_state_scramble()
+
     elif cid == "234":
         ret = ""
         ret = ret + "[2x2] " + scrambler222.get_WCA_scramble() + "\n"
@@ -89,6 +93,12 @@ def generate_scramble(cid):
 
     else:
         print(f"[WARN] no scrambler found for {cid}")
+
+
+def generate_scrambles(cid, count):
+    if cid == "fto":
+        return ftoScrambler.get_multiple_random_state_scrambles(count)
+    return [generate_scramble(cid) for _ in range(count)]
 
 
 mod_roles = db.load_second_table_idd(2)  # role
@@ -151,15 +161,16 @@ class scramblesCog(commands.Cog, name="scrambles command"):
             for category_id in al_ids:
                 cat_name = DICTIONARY.get(category_id)
                 repeat = hardstorage.category_attempts(category_id)
+                generated_scrambles = generate_scrambles(category_id, repeat + 1)
 
                 scrambles = ""
                 data = []
                 for i in range(repeat):
-                    scramb = generate_scramble(category_id)
+                    scramb = generated_scrambles[i]
                     scrambles = f"{scrambles}[{i+1}] {scramb}\n"
                     data.append([f"[{i+1}]",scramb])
 
-                scramb = generate_scramble(category_id)
+                scramb = generated_scrambles[repeat]
                 scrambles = f"{scrambles}[E] {scramb}\n"
                 data.append(["[E]",scramb])
 

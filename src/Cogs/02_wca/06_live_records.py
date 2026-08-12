@@ -48,6 +48,7 @@ WCA_EVENT_NAMES = {
     "pyram": "Pyraminx",
     "skewb": "Skewb",
     "sq1": "Square-1",
+    "fto": "Face-Turning Octahedron",
     "444bf": "4x4x4 Blindfolded",
     "555bf": "5x5x5 Blindfolded",
 }

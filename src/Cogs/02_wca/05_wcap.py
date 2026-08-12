@@ -11,7 +11,7 @@ from src.guild_access import both_guild_ids
 def max_len_in_collum(data):
     return [max(len(str(element)) for element in column) for column in zip(*data)]
 
-ARRY_FOR_WCA_ID_SORT = ["333","222","444","555","666","777","333bf","333fm","333oh","clock","minx","pyram","skewb","sq1","444bf","555bf","333mbf",]
+ARRY_FOR_WCA_ID_SORT = ["333","222","444","555","666","777","333bf","333fm","333oh","clock","minx","pyram","skewb","sq1","fto","444bf","555bf","333mbf",]
 BLIND_LABELS = {
     "333bf": "3BLD",
     "444bf": "4BLD",

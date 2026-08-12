@@ -76,7 +76,7 @@ class newweekCog(commands.Cog, name="newweek command"):
         for dis in discipline_list:
             if (dis not in all_possible_event):
                 q = discord.Embed(title="Aborting",description=f"Event with id: {dis} not found in database")
-                q.add_field(name="Events:",value="333,222,444,555,333oh,pyram,skewb,clock,minx,sq1,666,777,333bf,444bf,555bf")
+                q.add_field(name="Events:",value=",".join(all_possible_event))
                 q.set_footer(text="If you think this is an error contact bot admin.")
                 await ctx.send(embed=q)
                 return
