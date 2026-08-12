@@ -22,6 +22,16 @@ def _build_version_link(version):
     return f"[`{version}`]({BUILD_COMMITS_URL})"
 
 
+async def _respond_suppressing_embeds(ctx, content):
+    for kwargs in ({"suppress_embeds": True}, {"suppress": True}, {}):
+        try:
+            return await ctx.respond(content, **kwargs)
+        except TypeError:
+            if not kwargs:
+                raise
+    return None
+
+
 class PingCog(commands.Cog, name="pping command"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
@@ -35,11 +45,10 @@ class PingCog(commands.Cog, name="pping command"):
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def ping(self, ctx):
-        await ctx.defer()
         ping = self.bot.latency * 1000
-        await ctx.respond(
+        await _respond_suppressing_embeds(
+            ctx,
             f"🏓 Pong !  `{int(ping)} ms`\n⚙️ Build: {_build_version_link(self.version)}",
-            suppress=True,
         )
 
 

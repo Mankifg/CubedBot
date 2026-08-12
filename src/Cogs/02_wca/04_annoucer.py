@@ -39,6 +39,18 @@ def _people_field(singular, dual, plural, people):
     return label, ", ".join(names)
 
 
+def _format_event_ids(event_ids):
+    events = []
+    unknown_event_ids = []
+    for event_id in event_ids:
+        event_label = hardstorage.SHORT_DICTIONARY.get(event_id)
+        if event_label is None:
+            event_label = str(event_id)
+            unknown_event_ids.append(event_label)
+        events.append(event_label)
+    return events, unknown_event_ids
+
+
 def _parse_wca_datetime(value):
     if not isinstance(value, str) or not value.strip():
         return None
@@ -206,15 +218,14 @@ class annouceCog(commands.Cog, name="annouce command"):
                 final_comps.append(comp)
 
 
-        send = []
         for comp in final_comps:
 
             comp_id = comp["id"]
-            success, data = await asyncio.to_thread(wca_function.get_comp_data, comp_id)
+            try:
+                success, data = await asyncio.to_thread(wca_function.get_comp_data, comp_id)
 
-            if not success:
-                continue
-            else:
+                if not success:
+                    continue
                 is_special_fmc = wca_function.is_special_fmc_comp(data["name"])
                 q = discord.Embed(
                     title=f"{wca_function.comp_title_prefix(data['name'], data['country'])} | {data['name']}",
@@ -233,10 +244,9 @@ class annouceCog(commands.Cog, name="annouce command"):
                 q.add_field(name="Datum", value=date, inline=False)
 
                 #*********
-                events = data["events"]
-
-                for i in range(len(events)):
-                    events[i] = hardstorage.SHORT_DICTIONARY.get(events[i])
+                events, unknown_event_ids = _format_event_ids(data["events"])
+                if unknown_event_ids:
+                    print(f"[WARN] unknown event ids for {comp_id}: {unknown_event_ids}")
 
                 q.add_field(name="Discipline", value=", ".join(events), inline=False)
 
@@ -261,29 +271,37 @@ class annouceCog(commands.Cog, name="annouce command"):
 
                 if data["externalWebsite"]:
                     q.add_field(name="Spletna stran", value=data["externalWebsite"], inline=False)
+            except Exception as exc:
+                print(f"[ERROR] announcer embed build failed for {comp_id}: {exc}")
+                continue
 
-            send_msg = await ch.send(embed=q)
+            try:
+                send_msg = await ch.send(embed=q)
+            except Exception as exc:
+                print(f"[ERROR] announcer send failed for {comp_id}: {exc}")
+                continue
 
-            await send_msg.add_reaction("🟢")
-            await send_msg.add_reaction("🟡")
-            await send_msg.add_reaction("🔴")
+            for reaction in ("🟢", "🟡", "🔴"):
+                try:
+                    await send_msg.add_reaction(reaction)
+                except Exception as exc:
+                    print(f"[WARN] announcer reaction {reaction} failed for {comp_id}: {exc}")
             reminder = _registration_reminder_from_comp(data, ch.id, send_msg.id)
             if reminder is not None:
-                await send_msg.add_reaction(REMINDER_REACTION)
                 registration_reminders[comp_id] = reminder
+                try:
+                    await send_msg.add_reaction(REMINDER_REACTION)
+                except Exception as exc:
+                    print(f"[WARN] announcer reminder reaction failed for {comp_id}: {exc}")
 
-            send.append(comp_id)
+            if comp_id not in already_printed_comps:
+                already_printed_comps.append(comp_id)
+            try:
+                db.save_second_table_idd(dedupe_row)
+            except Exception as exc:
+                print(f"[ERROR] announcer dedupe save failed after {comp_id}: {exc}")
 
             await asyncio.sleep(5)
-
-
-
-        for comp_id in send:
-            if not comp_id in already_printed_comps:
-                already_printed_comps.append(comp_id)
-
-
-        db.save_second_table_idd(dedupe_row)
 
     @tasks.loop(seconds=REGISTRATION_REMINDER_CHECK_SECONDS)
     async def registration_reminder_check(self):

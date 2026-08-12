@@ -2,6 +2,7 @@ from pathlib import Path
 from itertools import cycle
 import os
 from dotenv import load_dotenv
+import inspect
 import time
 import subprocess
 import discord
@@ -68,6 +69,16 @@ def _build_version_link(version):
     return f"[`{version}`]({BUILD_COMMITS_URL})"
 
 
+def _suppress_embed_kwargs(send_callable):
+    try:
+        parameters = inspect.signature(send_callable).parameters
+    except (TypeError, ValueError):
+        parameters = {}
+    if "suppress_embeds" in parameters:
+        return {"suppress_embeds": True}
+    return {"suppress": True}
+
+
 async def send_startup_ping():
     try:
         row = db.load_second_table_idd(9)
@@ -81,7 +92,10 @@ async def send_startup_ping():
             channel = await bot.fetch_channel(int(channel_id))
 
         version = _current_version()
-        await channel.send(f"⚙️ Build: {_build_version_link(version)}", suppress=True)
+        await channel.send(
+            f"⚙️ Build: {_build_version_link(version)}",
+            **_suppress_embed_kwargs(channel.send),
+        )
     except Exception as exc:
         print(f"[WARN] Startup ping failed: {exc}")
 

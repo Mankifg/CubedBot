@@ -28,6 +28,7 @@ DICTIONARY = {
     "clock": "Clock",
     "minx": "Megaminx",
     "sq1": "Square-1",
+    "fto": "Face-Turning Octahedron",
     "234": "2+3+4 Relay",
     #* separator --------------------------------
     "333ft":"3x3x3 Feet"
@@ -53,6 +54,7 @@ SHORT_DICTIONARY = {
     "clock": "Clock",
     "minx": "Megaminx",
     "sq1": "Square-1",
+    "fto": "FTO",
     "234": "2+3+4 Relay",
     #* separator --------------------------------
     "333ft":"3x3 Feet"
@@ -69,6 +71,7 @@ AO5 = [
     "clock",
     "minx",
     "sq1",
+    "fto",
 ]
 
 MO3 = ["666", "777","333fm","444bf","555bf"]
@@ -81,7 +84,7 @@ def category_attempts(cid): #catgory id
         return 5
 
 #CATEGORIES_SORTED = ["222","333","444","555","666","777","333oh","333bld","333bf","333mbf","333fm","444bld","444bf","pyram","skewb","clock","minx","sq1","234"]
-CATEGORIES_SORTED = ["333","222","444","555","333oh","pyram","skewb","clock","minx","sq1","666","777","333bf","444bf","234","555bf"]
+CATEGORIES_SORTED = ["333","222","444","555","333oh","pyram","skewb","clock","minx","sq1","fto","666","777","333bf","444bf","234","555bf"]
 # 333, 222, 444, 555, 333oh, pyram, skewb, clock, minx, sq1, 666, 777, 333bld, 234
 
 POINTS = [

@@ -143,10 +143,9 @@ class compCog(commands.Cog, name="comp command"):
         q.add_field(name="Datum", value=date, inline=False)
         
         #*********
-        events = data["events"]
-        
-        for i in range(len(events)):
-            events[i] = hardstorage.SHORT_DICTIONARY.get(events[i])
+        events = []
+        for event_id in data["events"]:
+            events.append(hardstorage.SHORT_DICTIONARY.get(event_id, str(event_id)))
         
         q.add_field(name="Discipline", value=", ".join(events), inline=False)
 
