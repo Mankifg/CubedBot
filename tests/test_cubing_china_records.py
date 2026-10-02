@@ -115,6 +115,64 @@ class CubingChinaRecordsTests(unittest.TestCase):
         self.assertEqual([record["type"] for record in records], ["single", "average"])
         self.assertIs(records[0]["result"], records[1]["result"])
 
+    def test_european_and_national_records_are_preserved(self):
+        competition = {
+            "alias": "Foreign-Records-2026",
+            "wcaCompetitionId": "ForeignRecords2026",
+            "name": "Foreign Records 2026",
+        }
+        european_result = {
+            "id": 1,
+            "eventId": "666",
+            "attempts": [7000, 7100, 7200],
+            "best": 7000,
+            "average": 7100,
+            "regionalSingleRecord": "NR",
+            "regionalAverageRecord": "ER",
+            "competitor": {
+                "name": "European Competitor",
+                "wcaId": "2026EURO01",
+                "regionIso2": "SI",
+            },
+        }
+
+        records = live_result_to_records(
+            european_result,
+            competition,
+            "6x6x6 Cube",
+        )
+
+        self.assertEqual(
+            [(record["type"], record["tag"]) for record in records],
+            [("single", "NR"), ("average", "ER")],
+        )
+
+    def test_unmonitored_continental_records_are_ignored(self):
+        competition = {
+            "alias": "Asian-Records-2026",
+            "wcaCompetitionId": "AsianRecords2026",
+            "name": "Asian Records 2026",
+        }
+        result = {
+            "id": 2,
+            "eventId": "333",
+            "attempts": [500, 600, 700, 800, 900],
+            "best": 500,
+            "average": 700,
+            "regionalSingleRecord": "AsR",
+            "regionalAverageRecord": "",
+            "competitor": {
+                "name": "Asian Competitor",
+                "wcaId": "2026ASIA01",
+                "regionIso2": "CN",
+            },
+        }
+
+        self.assertEqual(
+            live_result_to_records(result, competition, "3x3x3 Cube"),
+            [],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -34,10 +34,10 @@ def load_live_records_module():
 LIVE_RECORDS = load_live_records_module()
 
 
-def make_record(wca_id):
+def make_record(wca_id, tag="WR", record_type="average"):
     return {
-        "type": "average",
-        "tag": "WR",
+        "type": record_type,
+        "tag": tag,
         "attemptResult": 371,
         "result": {
             "attempts": [
@@ -104,6 +104,52 @@ class LiveRecordDedupeTests(unittest.TestCase):
                 official_record,
             )
         )
+
+    def test_higher_record_moniker_blocks_later_lower_level_duplicates(self):
+        world_record = make_record("2023GENG02", tag="WR")
+        european_record = make_record("2023GENG02", tag="ER")
+        national_record = make_record("2023GENG02", tag="NR")
+        dedupe_map = {"records": []}
+        pending_map = {"records": {}}
+
+        LIVE_RECORDS.mark_sent_record(dedupe_map, "records", world_record)
+
+        self.assertTrue(
+            LIVE_RECORDS.already_sent_record(
+                dedupe_map,
+                pending_map,
+                "records",
+                european_record,
+            )
+        )
+        self.assertTrue(
+            LIVE_RECORDS.already_sent_record(
+                dedupe_map,
+                pending_map,
+                "records",
+                national_record,
+            )
+        )
+
+    def test_same_person_single_and_average_share_one_message_batch(self):
+        single = make_record("2023GENG02", record_type="single")
+        average = make_record("2023GENG02", record_type="average")
+
+        batches = LIVE_RECORDS.grouped_record_batches([single, average])
+
+        self.assertEqual(batches, [[average, single]])
+        self.assertNotEqual(
+            LIVE_RECORDS.record_dedupe_key(single),
+            LIVE_RECORDS.record_dedupe_key(average),
+        )
+
+    def test_different_people_remain_separate_message_batches(self):
+        single = make_record("2023GENG02", record_type="single")
+        average = make_record("2019TARA09", record_type="average")
+
+        batches = LIVE_RECORDS.grouped_record_batches([single, average])
+
+        self.assertEqual(batches, [[single], [average]])
 
 
 class CubingChinaEventTests(unittest.IsolatedAsyncioTestCase):

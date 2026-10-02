@@ -2,6 +2,7 @@ from datetime import date, timedelta
 
 
 CUBING_CHINA_API_BASE = "https://api.cubing.com"
+SUPPORTED_RECORD_TAGS = {"WR", "ER", "NR"}
 
 
 def active_wca_competitions(competitions, today, grace_days=2):
@@ -103,14 +104,15 @@ def live_result_to_records(result, competition, event_name):
     )
     for record_type, tag_field, value_field in record_specs:
         value = result.get(value_field)
-        if str(result.get(tag_field) or "").upper() != "WR":
+        tag = str(result.get(tag_field) or "").upper()
+        if tag not in SUPPORTED_RECORD_TAGS:
             continue
         if not isinstance(value, int) or value <= 0:
             continue
         records.append({
             "id": f"cubing-china:{result_id}:{record_type}:{value}",
             "type": record_type,
-            "tag": "WR",
+            "tag": tag,
             "attemptResult": value,
             "result": base_result,
         })
