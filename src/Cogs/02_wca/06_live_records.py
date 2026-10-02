@@ -1,17 +1,29 @@
 import asyncio
+import json
+import os
+import random
+import secrets
 import discord
+import aiohttp
 from discord.ext import commands
 import requests
 import traceback
 import time
 import unicodedata
 
+from datetime import datetime
 from discord.ext import tasks
 from urllib.parse import quote
+from zoneinfo import ZoneInfo
 
 import src.wca_function as wca_function
 import src.db as db
 import src.functions as functions
+from src.cubing_china_records import (
+    CUBING_CHINA_API_BASE,
+    active_wca_competitions,
+    live_result_to_records,
+)
 
 # Static WCA Europe ISO2 list (sourced from /api/v0/countries on 2026-03-17).
 EUROPEAN_ISO2 = {
@@ -19,6 +31,13 @@ EUROPEAN_ISO2 = {
 }
 MEAN_EVENT_IDS = {"444bf", "555bf", "333fm", "666", "777"}
 RECORDS_PAGE_URL = "https://www.worldcubeassociation.org/results/records"
+CUBING_CHINA_ENABLED = os.getenv(
+    "CUBING_CHINA_RECORDS_ENABLED",
+    "1",
+).strip().lower() not in {"0", "false", "no", "off"}
+CUBING_CHINA_SNAPSHOT_SECONDS = 60
+CUBING_CHINA_GRACE_DAYS = 2
+CUBING_CHINA_TIMEZONE = ZoneInfo("Asia/Shanghai")
 
 REQUEST_HEADERS = {
     "User-Agent": (
@@ -349,17 +368,30 @@ def competition_dedupe_key(competition):
 
     return canonical_text(competition.get("name"))
 
-def record_canonical_key(record, tag=None):
+def record_canonical_key(record, tag=None, person_identity=None):
     tag = tag or display_tag(record)
     round_obj = record["result"]["round"]
     competition_event = round_obj["competitionEvent"]
     event_id = competition_event["event"]["id"]
     competition = competition_event["competition"]
     person = record["result"]["person"]
-    person_id = person.get("wcaId") or person.get("name") or "unknown"
+    person_id = person_identity or person.get("wcaId") or person.get("name") or "unknown"
     result = record["attemptResult"]
     competition_key = competition_dedupe_key(competition)
     return f"record:{tag}:{event_id}:{record['type']}:{person_id}:{result}:{competition_key}"
+
+def record_canonical_keys(record, tag=None):
+    keys = [record_canonical_key(record, tag=tag)]
+    person_name = record.get("result", {}).get("person", {}).get("name")
+    if person_name:
+        name_key = record_canonical_key(
+            record,
+            tag=tag,
+            person_identity=f"name-{canonical_text(person_name)}",
+        )
+        if name_key not in keys:
+            keys.append(name_key)
+    return keys
 
 def record_dedupe_key(record):
     try:
@@ -377,7 +409,11 @@ def equivalent_record_dedupe_keys(record):
         tags = (tag,)
 
     try:
-        return [record_canonical_key(record, tag=tag) for tag in tags]
+        return [
+            key
+            for tag in tags
+            for key in record_canonical_keys(record, tag=tag)
+        ]
     except (AttributeError, KeyError, TypeError):
         return []
 
@@ -475,8 +511,9 @@ def mark_sent_record(dedupe_map, target_key, record):
         return
 
     already_sent = dedupe_map.setdefault(target_key, [])
-    if record_key not in already_sent:
-        already_sent.append(record_key)
+    for key in record_canonical_keys(record):
+        if key not in already_sent:
+            already_sent.append(key)
 
 def mark_pending_record(pending_map, target_key, record, source):
     record_key = record_dedupe_key(record)
@@ -488,22 +525,28 @@ def mark_pending_record(pending_map, target_key, record, source):
     if not isinstance(pending_records, dict):
         pending_records = {}
         pending_map[target_key] = pending_records
-    if record_key not in pending_records:
-        pending_records[record_key] = {
-            "created_at": int(time.time()),
-            "source": source,
-        }
+    metadata = {
+        "created_at": int(time.time()),
+        "source": source,
+    }
+    for key in record_canonical_keys(record):
+        if key not in pending_records:
+            pending_records[key] = metadata
     return record_key
 
 def clear_pending_record(pending_map, target_key, record):
     record_key = record_dedupe_key(record)
     if record_key is None:
-        return None
+        return []
 
     pending_records = pending_map.get(target_key)
-    if isinstance(pending_records, dict) and record_key in pending_records:
-        del pending_records[record_key]
-    return record_key
+    removed_keys = []
+    if isinstance(pending_records, dict):
+        for key in record_canonical_keys(record):
+            if key in pending_records:
+                del pending_records[key]
+                removed_keys.append(key)
+    return removed_keys
 
 def reserve_pending_record(dedupe_row, pending_map, target_key, record, source):
     record_key = mark_pending_record(pending_map, target_key, record, source)
@@ -527,17 +570,17 @@ def reserve_pending_records(dedupe_row, pending_map, target_key, records, source
 
 def mark_sent_and_clear_pending(dedupe_row, dedupe_map, pending_map, target_key, record):
     mark_sent_record(dedupe_map, target_key, record)
-    record_key = clear_pending_record(pending_map, target_key, record)
-    pending_removals = {target_key: [record_key]} if record_key is not None else None
+    record_keys = clear_pending_record(pending_map, target_key, record)
+    pending_removals = {target_key: record_keys} if record_keys else None
     save_live_record_dedupe_row(dedupe_row, pending_removals=pending_removals)
 
 def mark_sent_records_and_clear_pending(dedupe_row, dedupe_map, pending_map, target_key, records):
     pending_removal_keys = []
     for record in records:
         mark_sent_record(dedupe_map, target_key, record)
-        record_key = clear_pending_record(pending_map, target_key, record)
-        if record_key is not None:
-            pending_removal_keys.append(record_key)
+        pending_removal_keys.extend(
+            clear_pending_record(pending_map, target_key, record)
+        )
     pending_removals = (
         {target_key: pending_removal_keys}
         if pending_removal_keys
@@ -546,16 +589,16 @@ def mark_sent_records_and_clear_pending(dedupe_row, dedupe_map, pending_map, tar
     save_live_record_dedupe_row(dedupe_row, pending_removals=pending_removals)
 
 def clear_pending_after_failed_send(dedupe_row, pending_map, target_key, record):
-    record_key = clear_pending_record(pending_map, target_key, record)
-    pending_removals = {target_key: [record_key]} if record_key is not None else None
+    record_keys = clear_pending_record(pending_map, target_key, record)
+    pending_removals = {target_key: record_keys} if record_keys else None
     save_live_record_dedupe_row(dedupe_row, pending_removals=pending_removals)
 
 def clear_pending_records_after_failed_send(dedupe_row, pending_map, target_key, records):
     pending_removal_keys = []
     for record in records:
-        record_key = clear_pending_record(pending_map, target_key, record)
-        if record_key is not None:
-            pending_removal_keys.append(record_key)
+        pending_removal_keys.extend(
+            clear_pending_record(pending_map, target_key, record)
+        )
     pending_removals = (
         {target_key: pending_removal_keys}
         if pending_removal_keys
@@ -735,9 +778,16 @@ def build_record_group_embed(records):
     else:
         q = discord.Embed(title=titl, color=discord.Colour.red())
 
+    person_wca_id = person.get("wcaId")
+    person_value = (
+        f'[{person_wca_id}]'
+        f'(https://www.worldcubeassociation.org/persons/{person_wca_id})'
+        if person_wca_id
+        else "WCA ID pending"
+    )
     q.add_field(
         name=f':flag_{person["country"]["iso2"].lower()}: {person["name"]}',
-        value=f'[{person["wcaId"]}](https://www.worldcubeassociation.org/persons/{person["wcaId"]})',
+        value=person_value,
     )
 
     q.add_field(
@@ -801,8 +851,292 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
         self.records_check_lock = asyncio.Lock()
+        self.cubing_china_session = None
+        self.cubing_china_competitions = {}
+        self.cubing_china_workers = {}
+        self.cubing_china_etags = {}
+        self.cubing_china_round_revisions = {}
+        self.cubing_china_viewer_id = secrets.token_hex(16)
         self.wca_live_check.start()
         self.wca_official_records_check.start()
+        if CUBING_CHINA_ENABLED:
+            self.cubing_china_discovery.start()
+
+    def cog_unload(self):
+        self.wca_live_check.cancel()
+        self.wca_official_records_check.cancel()
+        if CUBING_CHINA_ENABLED:
+            self.cubing_china_discovery.cancel()
+        self.bot.loop.create_task(self._shutdown_cubing_china())
+
+    async def _shutdown_cubing_china(self):
+        workers = list(self.cubing_china_workers.values())
+        self.cubing_china_workers.clear()
+        for worker in workers:
+            worker.cancel()
+        if workers:
+            await asyncio.gather(*workers, return_exceptions=True)
+        if self.cubing_china_session is not None:
+            await self.cubing_china_session.close()
+            self.cubing_china_session = None
+
+    async def _ensure_cubing_china_session(self):
+        if self.cubing_china_session is None or self.cubing_china_session.closed:
+            self.cubing_china_session = aiohttp.ClientSession(headers={
+                "User-Agent": (
+                    "CubedBot/1.1 record-monitor "
+                    "(+https://github.com/Mankifg/CubedBot)"
+                ),
+                "Accept": "application/json",
+            })
+        return self.cubing_china_session
+
+    @tasks.loop(hours=2)
+    async def cubing_china_discovery(self):
+        try:
+            await self._cubing_china_discovery()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            print(f"[ERROR] Cubing China competition discovery failed: {exc}")
+            traceback.print_exc()
+
+    async def _cubing_china_discovery(self):
+        if not load_live_record_targets():
+            await self._sync_cubing_china_workers([])
+            return
+
+        session = await self._ensure_cubing_china_session()
+        today = datetime.now(CUBING_CHINA_TIMEZONE).date()
+        years = {today.year}
+        if today.month == 1 and today.day <= 7:
+            years.add(today.year - 1)
+        competitions = []
+
+        for year in sorted(years):
+            skip = 0
+            while True:
+                async with session.get(
+                    f"{CUBING_CHINA_API_BASE}/competitions",
+                    params={"year": year, "take": 100, "skip": skip},
+                    timeout=aiohttp.ClientTimeout(total=30),
+                ) as response:
+                    response.raise_for_status()
+                    payload = await response.json(content_type=None)
+
+                page = payload.get("data", []) if isinstance(payload, dict) else []
+                if not isinstance(page, list):
+                    raise ValueError("Cubing China competition list has invalid data")
+                competitions.extend(page)
+
+                total = payload.get("total", len(page))
+                skip += len(page)
+                if not page or skip >= total:
+                    break
+
+        active = active_wca_competitions(
+            competitions,
+            today,
+            grace_days=CUBING_CHINA_GRACE_DAYS,
+        )
+        await self._sync_cubing_china_workers(active)
+
+    async def _sync_cubing_china_workers(self, competitions):
+        active_by_alias = {
+            str(competition["alias"]): competition
+            for competition in competitions
+        }
+        previous_aliases = set(self.cubing_china_competitions)
+        active_aliases = set(active_by_alias)
+        self.cubing_china_competitions = active_by_alias
+
+        stopped_workers = []
+        for alias in previous_aliases - active_aliases:
+            worker = self.cubing_china_workers.pop(alias, None)
+            if worker is not None:
+                worker.cancel()
+                stopped_workers.append(worker)
+            self.cubing_china_etags.pop(alias, None)
+            self.cubing_china_round_revisions.pop(alias, None)
+
+        if stopped_workers:
+            await asyncio.gather(*stopped_workers, return_exceptions=True)
+
+        for alias in active_aliases:
+            worker = self.cubing_china_workers.get(alias)
+            if worker is None or worker.done():
+                self.cubing_china_workers[alias] = self.bot.loop.create_task(
+                    self._cubing_china_worker(alias)
+                )
+
+        if previous_aliases != active_aliases:
+            print(
+                "[INFO] Cubing China record monitor active competitions: "
+                f"{len(active_aliases)}"
+            )
+
+    async def _cubing_china_worker(self, alias):
+        snapshot_task = self.bot.loop.create_task(
+            self._cubing_china_snapshot_loop(alias)
+        )
+        failures = 0
+        try:
+            while alias in self.cubing_china_competitions:
+                connected_at = time.monotonic()
+                try:
+                    await self._fetch_cubing_china_snapshot(alias)
+                    await self._consume_cubing_china_stream(alias)
+                    raise aiohttp.ClientConnectionError("event stream closed")
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    if time.monotonic() - connected_at >= 60:
+                        failures = 0
+                    failures += 1
+                    if failures == 1 or failures % 5 == 0:
+                        print(
+                            f"[WARN] Cubing China live stream reconnect {alias} "
+                            f"after failure {failures}: {exc}"
+                        )
+                    delay = min(60, 2 ** min(failures, 5))
+                    await asyncio.sleep(delay + random.random())
+        finally:
+            snapshot_task.cancel()
+            await asyncio.gather(snapshot_task, return_exceptions=True)
+
+    async def _cubing_china_snapshot_loop(self, alias):
+        while alias in self.cubing_china_competitions:
+            await asyncio.sleep(CUBING_CHINA_SNAPSHOT_SECONDS)
+            try:
+                await self._fetch_cubing_china_snapshot(alias)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                print(f"[WARN] Cubing China record snapshot failed for {alias}: {exc}")
+
+    async def _fetch_cubing_china_snapshot(self, alias):
+        session = await self._ensure_cubing_china_session()
+        headers = {}
+        etag = self.cubing_china_etags.get(alias)
+        if etag:
+            headers["If-None-Match"] = etag
+
+        async with session.get(
+            f"{CUBING_CHINA_API_BASE}/competitions/{quote(alias, safe='')}/live/records",
+            headers=headers,
+            timeout=aiohttp.ClientTimeout(total=30),
+        ) as response:
+            if response.status == 304:
+                return
+            response.raise_for_status()
+            payload = await response.json(content_type=None)
+            response_etag = response.headers.get("ETag")
+            if response_etag:
+                self.cubing_china_etags[alias] = response_etag
+
+        results = payload.get("data", []) if isinstance(payload, dict) else []
+        if not isinstance(results, list):
+            raise ValueError("Cubing China records response has invalid data")
+        await self._process_cubing_china_results(alias, results)
+
+    async def _consume_cubing_china_stream(self, alias):
+        session = await self._ensure_cubing_china_session()
+        url = (
+            f"{CUBING_CHINA_API_BASE}/competitions/"
+            f"{quote(alias, safe='')}/live/stream"
+        )
+        timeout = aiohttp.ClientTimeout(total=None, sock_read=90)
+        async with session.get(
+            url,
+            params={"viewerId": self.cubing_china_viewer_id},
+            headers={"Accept": "text/event-stream"},
+            timeout=timeout,
+        ) as response:
+            response.raise_for_status()
+            data_lines = []
+            async for raw_line in response.content:
+                line = raw_line.decode("utf-8", errors="replace").rstrip("\r\n")
+                if line == "":
+                    if data_lines:
+                        await self._handle_cubing_china_event(
+                            alias,
+                            "\n".join(data_lines),
+                        )
+                    data_lines = []
+                    continue
+                if line.startswith("data:"):
+                    data_lines.append(line[5:].lstrip())
+
+    async def _handle_cubing_china_event(self, alias, raw_data):
+        try:
+            event = json.loads(raw_data)
+        except (TypeError, json.JSONDecodeError):
+            return
+        if not isinstance(event, dict) or event.get("type") == "heartbeat":
+            return
+
+        payload = event.get("payload")
+        if not isinstance(payload, dict):
+            return
+        results = payload.get("upsertedResults")
+        if not isinstance(results, list):
+            return
+
+        round_data = payload.get("round")
+        revision_gap = False
+        if isinstance(round_data, dict):
+            round_id = round_data.get("id")
+            revision = round_data.get("revision")
+            if round_id is not None and isinstance(revision, int):
+                revisions = self.cubing_china_round_revisions.setdefault(alias, {})
+                previous = revisions.get(round_id)
+                revision_gap = previous is not None and revision > previous + 1
+                revisions[round_id] = max(revision, previous or revision)
+
+        await self._process_cubing_china_results(alias, results)
+        if revision_gap:
+            await self._fetch_cubing_china_snapshot(alias)
+
+    async def _process_cubing_china_results(self, alias, results):
+        competition = self.cubing_china_competitions.get(alias)
+        if not isinstance(competition, dict):
+            return
+
+        records = []
+        for result in results:
+            if not isinstance(result, dict):
+                continue
+            event_id = str(result.get("eventId") or "")
+            event_name = WCA_EVENT_NAMES.get(event_id)
+            if event_name is None:
+                continue
+            records.extend(
+                live_result_to_records(result, competition, event_name)
+            )
+        if not records:
+            return
+
+        async with self.records_check_lock:
+            targets = load_live_record_targets()
+            if not targets:
+                return
+            dedupe_row = load_live_record_dedupe_row()
+            target_keys = [
+                str(target.get("key", "")).strip()
+                for target in targets
+                if str(target.get("key", "")).strip()
+            ]
+            dedupe_map = ensure_dedupe_map(dedupe_row, target_keys)
+            pending_map = ensure_pending_map(dedupe_row, target_keys)
+            for record_group in grouped_record_batches(records):
+                await self._process_wca_live_records(
+                    record_group,
+                    targets,
+                    dedupe_map,
+                    pending_map,
+                    dedupe_row,
+                    source="cubing_china",
+                )
 
 
     @tasks.loop(seconds=600)
@@ -904,6 +1238,7 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
         dedupe_map,
         pending_map,
         dedupe_row,
+        source="wca_live",
     ):
         for target in targets:
             target_key = str(target.get("key", "")).strip()
@@ -945,7 +1280,7 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                     pending_map,
                     target_key,
                     send_records,
-                    "wca_live",
+                    source,
                 )
             except Exception as exc:
                 print(f"[ERROR] records pending save failed for {target_key}: {exc}")
@@ -976,7 +1311,10 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                     target_key,
                     send_records,
                 )
-                print(f"[INFO] records sent target {target_key} to channel {channel}")
+                print(
+                    f"[INFO] {source} records sent target {target_key} "
+                    f"to channel {channel}"
+                )
             except Exception as exc:
                 print(
                     f"[ERROR] records final dedupe save failed for {target_key}: {exc}. "
@@ -1135,6 +1473,7 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
 
     @wca_live_check.before_loop
     @wca_official_records_check.before_loop
+    @cubing_china_discovery.before_loop
     async def before_send_message(self):
         await self.bot.wait_until_ready()
 

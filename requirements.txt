@@ -2,7 +2,7 @@ python-dotenv
 supabase
 aiosqlite
 py-cord
-aiohttp # not directly required, pinned by Snyk to avoid a vulnerability
+aiohttp
 requests
 pyTwistyScrambler
 beautifulsoup4
