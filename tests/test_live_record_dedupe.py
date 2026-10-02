@@ -158,6 +158,24 @@ class LiveRecordDedupeTests(unittest.TestCase):
 
 
 class CubingChinaEventTests(unittest.IsolatedAsyncioTestCase):
+    def test_stable_stream_disconnect_reconnects_without_warning(self):
+        self.assertEqual(
+            LIVE_RECORDS.cubing_china_stream_failure_state(4, 60),
+            (0, False),
+        )
+
+    def test_short_stream_failures_warn_first_and_every_fifth_time(self):
+        failures = 0
+        warnings = []
+        for _ in range(10):
+            failures, should_warn = (
+                LIVE_RECORDS.cubing_china_stream_failure_state(failures, 10)
+            )
+            if should_warn:
+                warnings.append(failures)
+
+        self.assertEqual(warnings, [1, 5, 10])
+
     async def test_revision_gap_processes_upserts_and_reconciles_snapshot(self):
         cog = object.__new__(LIVE_RECORDS.liveRecordsCog)
         cog.cubing_china_round_revisions = {}

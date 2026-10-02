@@ -64,6 +64,13 @@ REQUEST_HEADERS = {
     "Sec-Fetch-Dest": "empty",
 }
 
+
+def cubing_china_stream_failure_state(failures, connected_seconds):
+    if connected_seconds >= 60:
+        return 0, False
+    failures += 1
+    return failures, failures == 1 or failures % 5 == 0
+
 WCA_EVENT_NAMES = {
     "222": "2x2x2 Cube",
     "333": "3x3x3 Cube",
@@ -1089,15 +1096,16 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                 except asyncio.CancelledError:
                     raise
                 except Exception as exc:
-                    if time.monotonic() - connected_at >= 60:
-                        failures = 0
-                    failures += 1
-                    if failures == 1 or failures % 5 == 0:
+                    failures, should_warn = cubing_china_stream_failure_state(
+                        failures,
+                        time.monotonic() - connected_at,
+                    )
+                    if should_warn:
                         print(
                             f"[WARN] Cubing China live stream reconnect {alias} "
                             f"after failure {failures}: {exc}"
                         )
-                    delay = min(60, 2 ** min(failures, 5))
+                    delay = min(60, 2 ** min(max(failures, 1), 5))
                     await asyncio.sleep(delay + random.random())
         finally:
             snapshot_task.cancel()
