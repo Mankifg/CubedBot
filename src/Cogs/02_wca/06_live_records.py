@@ -24,6 +24,7 @@ from src.cubing_china_records import (
     active_wca_competitions,
     live_result_to_records,
 )
+from src.guild_access import ensure_primary_guild, primary_guild_ids
 
 # Static WCA Europe ISO2 list (sourced from /api/v0/countries on 2026-03-17).
 EUROPEAN_ISO2 = {
@@ -38,6 +39,18 @@ CUBING_CHINA_ENABLED = os.getenv(
 CUBING_CHINA_SNAPSHOT_SECONDS = 60
 CUBING_CHINA_GRACE_DAYS = 2
 CUBING_CHINA_TIMEZONE = ZoneInfo("Asia/Shanghai")
+RECORD_SOURCE_DEFAULTS = {
+    "wca_live": True,
+    "cubing_china": True,
+    "wca_official": True,
+}
+RECORD_SOURCE_LABELS = {
+    "wca_live": "WCA Live",
+    "cubing_china": "Cubing China",
+    "wca_official": "WCA official fallback",
+}
+RECORD_SOURCE_CONTROL_USER_IDS = {697176514676129933}
+RECORD_SOURCE_CONTROL_ROLE_IDS = set()
 
 REQUEST_HEADERS = {
     "User-Agent": (
@@ -216,6 +229,45 @@ def load_live_record_targets():
     if not isinstance(targets, list):
         return []
     return [target for target in targets if isinstance(target, dict)]
+
+def normalize_record_source_states(data):
+    configured = data.get("record_sources") if isinstance(data, dict) else None
+    if not isinstance(configured, dict):
+        configured = {}
+    return {
+        source: configured.get(source, default)
+        if isinstance(configured.get(source, default), bool)
+        else default
+        for source, default in RECORD_SOURCE_DEFAULTS.items()
+    }
+
+def load_record_source_states():
+    row = db.load_second_table_idd(3)
+    return normalize_record_source_states(row.get("data"))
+
+def save_record_source_state(source, enabled):
+    if source not in RECORD_SOURCE_DEFAULTS:
+        raise ValueError(f"unknown record source: {source}")
+
+    row = db.load_second_table_idd(3)
+    data = row.get("data")
+    if not isinstance(data, dict):
+        raise ValueError("record configuration has invalid data")
+
+    states = normalize_record_source_states(data)
+    states[source] = bool(enabled)
+    data["record_sources"] = states
+    db.save_second_table_idd(row)
+    return states
+
+def can_control_record_sources(member):
+    if getattr(member, "id", None) in RECORD_SOURCE_CONTROL_USER_IDS:
+        return True
+    member_role_ids = {
+        getattr(role, "id", None)
+        for role in getattr(member, "roles", [])
+    }
+    return bool(member_role_ids & RECORD_SOURCE_CONTROL_ROLE_IDS)
 
 def load_live_record_dedupe_row():
     return db.load_second_table_idd(4)
@@ -851,6 +903,7 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
     def __init__(self, bot: commands.bot):
         self.bot = bot
         self.records_check_lock = asyncio.Lock()
+        self.record_source_states = dict(RECORD_SOURCE_DEFAULTS)
         self.cubing_china_session = None
         self.cubing_china_competitions = {}
         self.cubing_china_workers = {}
@@ -884,12 +937,53 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
         if self.cubing_china_session is None or self.cubing_china_session.closed:
             self.cubing_china_session = aiohttp.ClientSession(headers={
                 "User-Agent": (
-                    "CubedBot/1.1 record-monitor "
+                    "CubedBot/1.2 record-monitor "
                     "(+https://github.com/Mankifg/CubedBot)"
                 ),
                 "Accept": "application/json",
             })
         return self.cubing_china_session
+
+    def _refresh_record_source_states(self):
+        self.record_source_states = load_record_source_states()
+        return self.record_source_states
+
+    def _record_source_enabled(self, source):
+        enabled = bool(self.record_source_states.get(source, True))
+        if source == "cubing_china" and not CUBING_CHINA_ENABLED:
+            return False
+        return enabled
+
+    def _record_source_status_text(self):
+        lines = []
+        for source, label in RECORD_SOURCE_LABELS.items():
+            configured = bool(self.record_source_states.get(source, True))
+            effective = self._record_source_enabled(source)
+            state = "enabled" if effective else "disabled"
+            if source == "cubing_china" and configured and not effective:
+                state += " (environment override)"
+            lines.append(f"**{label}:** {state}")
+        return "\n".join(lines)
+
+    async def _run_enabled_record_source_once(self, source):
+        try:
+            if source == "cubing_china":
+                if self._record_source_enabled(source):
+                    await self._cubing_china_discovery(refresh_states=False)
+                return
+
+            async with self.records_check_lock:
+                if not self._record_source_enabled(source):
+                    return
+                if source == "wca_live":
+                    await self._wca_live_check()
+                elif source == "wca_official":
+                    await self._wca_official_records_check()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            print(f"[ERROR] immediate {source} record check failed: {exc}")
+            traceback.print_exc()
 
     @tasks.loop(hours=2)
     async def cubing_china_discovery(self):
@@ -901,7 +995,12 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
             print(f"[ERROR] Cubing China competition discovery failed: {exc}")
             traceback.print_exc()
 
-    async def _cubing_china_discovery(self):
+    async def _cubing_china_discovery(self, refresh_states=True):
+        if refresh_states:
+            self._refresh_record_source_states()
+        if not self._record_source_enabled("cubing_china"):
+            await self._sync_cubing_china_workers([])
+            return
         if not load_live_record_targets():
             await self._sync_cubing_china_workers([])
             return
@@ -1098,6 +1197,8 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
             await self._fetch_cubing_china_snapshot(alias)
 
     async def _process_cubing_china_results(self, alias, results):
+        if not self._record_source_enabled("cubing_china"):
+            return
         competition = self.cubing_china_competitions.get(alias)
         if not isinstance(competition, dict):
             return
@@ -1143,6 +1244,9 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
     async def wca_live_check(self):
         try:
             async with self.records_check_lock:
+                self._refresh_record_source_states()
+                if not self._record_source_enabled("wca_live"):
+                    return
                 await self._wca_live_check()
         except Exception as exc:
             print(f"[ERROR] unexpected wca live record loop failure: {exc}")
@@ -1326,10 +1430,107 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
     async def wca_official_records_check(self):
         try:
             async with self.records_check_lock:
+                self._refresh_record_source_states()
+                if not self._record_source_enabled("wca_official"):
+                    return
                 await self._wca_official_records_check()
         except Exception as exc:
             print(f"[ERROR] unexpected official WCA record loop failure: {exc}")
             traceback.print_exc()
+
+    @discord.command(
+        name="recordsource",
+        description="Enable or disable a global automatic record source.",
+        guild_ids=primary_guild_ids(),
+    )
+    @discord.option(
+        name="source",
+        description="Record source to control.",
+        choices=list(RECORD_SOURCE_DEFAULTS),
+        required=True,
+    )
+    @discord.option(
+        name="enabled",
+        description="Whether this source should be enabled.",
+        input_type=bool,
+        required=True,
+    )
+    @commands.cooldown(1, 2, commands.BucketType.member)
+    async def recordsource(self, ctx, source: str, enabled: bool):
+        if not await ensure_primary_guild(ctx, self.bot):
+            return
+        if not can_control_record_sources(ctx.author):
+            await ctx.respond(
+                "You don't have permission to control record sources.",
+                ephemeral=True,
+            )
+            return
+        await ctx.defer(ephemeral=True)
+
+        apply_error = None
+        try:
+            async with self.records_check_lock:
+                self.record_source_states = save_record_source_state(source, enabled)
+                if source == "cubing_china" and not self._record_source_enabled(source):
+                    try:
+                        await self._sync_cubing_china_workers([])
+                    except Exception as exc:
+                        apply_error = exc
+                        print(f"[ERROR] Cubing China worker shutdown failed: {exc}")
+                        traceback.print_exc()
+        except Exception as exc:
+            print(f"[ERROR] record source setting update failed: {exc}")
+            traceback.print_exc()
+            await ctx.edit(
+                content="The source setting could not be saved. Nothing was changed.",
+            )
+            return
+
+        effective = self._record_source_enabled(source)
+        if enabled and effective:
+            self.bot.loop.create_task(self._run_enabled_record_source_once(source))
+
+        print(
+            f"[INFO] record source {source} set to {enabled} "
+            f"by user {ctx.author.id}"
+        )
+
+        response = self._record_source_status_text()
+        if apply_error is not None:
+            response += (
+                "\n\nThe setting was saved, but the existing Cubing China "
+                "workers could not be stopped cleanly."
+            )
+        await ctx.edit(content=response)
+
+    @discord.command(
+        name="recordsources",
+        description="Show global automatic record source states.",
+        guild_ids=primary_guild_ids(),
+    )
+    @commands.cooldown(1, 2, commands.BucketType.member)
+    async def recordsources(self, ctx):
+        if not await ensure_primary_guild(ctx, self.bot):
+            return
+        if not can_control_record_sources(ctx.author):
+            await ctx.respond(
+                "You don't have permission to view record source controls.",
+                ephemeral=True,
+            )
+            return
+        await ctx.defer(ephemeral=True)
+
+        try:
+            self._refresh_record_source_states()
+        except Exception as exc:
+            print(f"[ERROR] record source settings load failed: {exc}")
+            traceback.print_exc()
+            await ctx.edit(
+                content="The source settings could not be loaded.",
+            )
+            return
+
+        await ctx.edit(content=self._record_source_status_text())
 
     async def _wca_official_records_check(self):
         targets = load_live_record_targets()

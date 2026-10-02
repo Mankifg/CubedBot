@@ -1,9 +1,10 @@
+import asyncio
 import importlib.util
 import sys
 import types
 import unittest
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 
 def load_live_records_module():
@@ -12,6 +13,9 @@ def load_live_records_module():
     fake_wca.COUNTRIES_DICT = {}
     fake_db = types.ModuleType("src.db")
     fake_functions = types.ModuleType("src.functions")
+    fake_guild_access = types.ModuleType("src.guild_access")
+    fake_guild_access.primary_guild_ids = lambda: []
+    fake_guild_access.ensure_primary_guild = AsyncMock(return_value=True)
 
     module_path = (
         Path(__file__).parents[1]
@@ -26,6 +30,7 @@ def load_live_records_module():
         "src.wca_function": fake_wca,
         "src.db": fake_db,
         "src.functions": fake_functions,
+        "src.guild_access": fake_guild_access,
     }):
         spec.loader.exec_module(module)
     return module
@@ -181,6 +186,76 @@ class CubingChinaEventTests(unittest.IsolatedAsyncioTestCase):
         cog._fetch_cubing_china_snapshot.assert_awaited_once_with(
             "test-competition"
         )
+
+
+class RecordSourceControlTests(unittest.IsolatedAsyncioTestCase):
+    def test_missing_or_invalid_source_settings_default_to_enabled(self):
+        self.assertEqual(
+            LIVE_RECORDS.normalize_record_source_states({}),
+            LIVE_RECORDS.RECORD_SOURCE_DEFAULTS,
+        )
+        self.assertEqual(
+            LIVE_RECORDS.normalize_record_source_states({
+                "record_sources": {
+                    "wca_live": False,
+                    "cubing_china": "false",
+                },
+            }),
+            {
+                "wca_live": False,
+                "cubing_china": True,
+                "wca_official": True,
+            },
+        )
+
+    def test_save_source_setting_preserves_record_target_configuration(self):
+        row = {
+            "id": 3,
+            "data": {
+                "records_targets": [{"key": "si"}],
+                "record_sources": {"wca_live": False},
+            },
+        }
+        LIVE_RECORDS.db.load_second_table_idd = Mock(return_value=row)
+        LIVE_RECORDS.db.save_second_table_idd = Mock()
+
+        states = LIVE_RECORDS.save_record_source_state("cubing_china", False)
+
+        self.assertEqual(row["data"]["records_targets"], [{"key": "si"}])
+        self.assertEqual(states, {
+            "wca_live": False,
+            "cubing_china": False,
+            "wca_official": True,
+        })
+        LIVE_RECORDS.db.save_second_table_idd.assert_called_once_with(row)
+
+    def test_only_configured_user_can_control_sources(self):
+        owner = types.SimpleNamespace(id=697176514676129933, roles=[])
+        other = types.SimpleNamespace(id=1, roles=[])
+
+        self.assertTrue(LIVE_RECORDS.can_control_record_sources(owner))
+        self.assertFalse(LIVE_RECORDS.can_control_record_sources(other))
+
+    async def test_disabled_source_skips_immediate_check(self):
+        cog = object.__new__(LIVE_RECORDS.liveRecordsCog)
+        cog.records_check_lock = asyncio.Lock()
+        cog.record_source_states = dict(LIVE_RECORDS.RECORD_SOURCE_DEFAULTS)
+        cog.record_source_states["wca_live"] = False
+        cog._wca_live_check = AsyncMock()
+
+        await cog._run_enabled_record_source_once("wca_live")
+
+        cog._wca_live_check.assert_not_awaited()
+
+    async def test_enabled_source_runs_immediate_check(self):
+        cog = object.__new__(LIVE_RECORDS.liveRecordsCog)
+        cog.records_check_lock = asyncio.Lock()
+        cog.record_source_states = dict(LIVE_RECORDS.RECORD_SOURCE_DEFAULTS)
+        cog._wca_live_check = AsyncMock()
+
+        await cog._run_enabled_record_source_once("wca_live")
+
+        cog._wca_live_check.assert_awaited_once_with()
 
 
 if __name__ == "__main__":
