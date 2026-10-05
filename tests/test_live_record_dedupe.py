@@ -71,6 +71,66 @@ def make_record(wca_id, tag="WR", record_type="average"):
 
 
 class LiveRecordDedupeTests(unittest.TestCase):
+    def test_v2_slot_delivery_replaces_flat_dedupe_for_migrated_database(self):
+        record = make_record("2023GENG02")
+        row = {
+            "data": {
+                "record_storage_version": 2,
+                "record_slots": {},
+                "records_pending": {"si": {}},
+            },
+        }
+        dedupe_map = LIVE_RECORDS.ensure_dedupe_map(row, ["si"])
+        pending_map = LIVE_RECORDS.ensure_pending_map(row, ["si"])
+
+        self.assertFalse(
+            LIVE_RECORDS.already_sent_record(
+                dedupe_map,
+                pending_map,
+                "si",
+                record,
+                dedupe_row=row,
+            )
+        )
+
+        with patch.object(LIVE_RECORDS, "save_live_record_dedupe_row"):
+            LIVE_RECORDS.mark_sent_records_and_clear_pending(
+                row,
+                dedupe_map,
+                pending_map,
+                "si",
+                [record],
+                source="wca_live",
+                sent_at="2026-10-05T10:00:00+00:00",
+                message_id=123,
+            )
+
+        self.assertNotIn("records_dedupe", row["data"])
+        self.assertTrue(
+            LIVE_RECORDS.already_sent_record(
+                dedupe_map,
+                pending_map,
+                "si",
+                record,
+                dedupe_row=row,
+            )
+        )
+        entry = row["data"]["record_slots"]["WR:333:average"][0]
+        self.assertEqual(entry["deliveries"]["si"]["message_id"], "123")
+
+    def test_v1_database_remains_unchanged_until_explicit_migration(self):
+        row = {"data": {"records_dedupe": {"si": []}}}
+
+        dedupe_map = LIVE_RECORDS.ensure_dedupe_map(row, ["si"])
+        LIVE_RECORDS.mark_sent_record(
+            dedupe_map,
+            "si",
+            make_record("2023GENG02"),
+        )
+
+        self.assertNotIn("record_storage_version", row["data"])
+        self.assertEqual(len(row["data"]["records_dedupe"]["si"]), 2)
+
     def test_existing_wca_id_canonical_key_is_unchanged(self):
         record = make_record("2023GENG02")
 

@@ -14,6 +14,9 @@ load_dotenv()
 token = os.getenv("TOKEN")
 
 import src.db as db
+from src.database_logging import install_database_logging
+
+database_log_sink = install_database_logging(db.supabase)
 
 status = cycle(
     [

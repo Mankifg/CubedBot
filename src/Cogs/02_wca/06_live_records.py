@@ -25,11 +25,16 @@ from src.cubing_china_records import (
     live_result_to_records,
 )
 from src.guild_access import primary_guild_ids
+from src.record_slots import (
+    EUROPEAN_ISO2,
+    already_delivered,
+    ensure_record_slots,
+    is_slot_storage,
+    merge_record_slots,
+    record_delivery,
+    utc_now_iso,
+)
 
-# Static WCA Europe ISO2 list (sourced from /api/v0/countries on 2026-03-17).
-EUROPEAN_ISO2 = {
-    "AD","AL","AM","AT","AZ","BA","BE","BG","BY","CH","CY","CZ","DE","DK","EE","ES","FI","FR","GB","GE","GR","HR","HU","IE","IL","IS","IT","LI","LT","LU","LV","MC","MD","ME","MK","MT","NL","NO","PL","PT","RO","RS","RU","SE","SI","SK","SM","TR","UA","VA","XE","XK",
-}
 MEAN_EVENT_IDS = {"444bf", "555bf", "333fm", "666", "777"}
 RECORDS_PAGE_URL = "https://www.worldcubeassociation.org/results/records"
 CUBING_CHINA_ENABLED = os.getenv(
@@ -384,9 +389,31 @@ def save_live_record_dedupe_row(row, pending_removals=None):
     if not isinstance(latest_row.get("data"), dict):
         latest_row["data"] = {}
 
+    local_data = row.get("data") if isinstance(row.get("data"), dict) else {}
+    if is_slot_storage(local_data):
+        latest_slots = ensure_record_slots(latest_row["data"])
+        local_slots = ensure_record_slots(local_data)
+        merge_record_slots(latest_slots, local_slots)
+        merge_record_slots(local_slots, latest_slots)
+
+        latest_pending = _normalize_pending(
+            latest_row["data"].get("records_pending")
+        )
+        local_pending = _normalize_pending(local_data.get("records_pending"))
+        _merge_pending_into(latest_pending, local_pending)
+        _merge_pending_into(local_pending, latest_pending)
+        _remove_pending_keys(latest_pending, pending_removals)
+        _remove_pending_keys(local_pending, pending_removals)
+
+        latest_row["data"]["records_pending"] = latest_pending
+        local_data["records_pending"] = local_pending
+        latest_row["data"].pop("records_dedupe", None)
+        local_data.pop("records_dedupe", None)
+        db.save_second_table_idd(latest_row)
+        return
+
     latest_dedupe = _normalize_dedupe(latest_row["data"].get("records_dedupe"))
     latest_pending = _normalize_pending(latest_row["data"].get("records_pending"))
-    local_data = row.get("data") if isinstance(row.get("data"), dict) else {}
     local_dedupe = _normalize_dedupe(local_data.get("records_dedupe"))
     local_pending = _normalize_pending(local_data.get("records_pending"))
 
@@ -408,6 +435,10 @@ def save_live_record_dedupe_row(row, pending_removals=None):
 def ensure_dedupe_map(row, target_keys):
     if not isinstance(row.get("data"), dict):
         row["data"] = {}
+
+    if is_slot_storage(row["data"]):
+        ensure_record_slots(row["data"])
+        return {key: [] for key in target_keys}
 
     dedupe = row["data"].get("records_dedupe")
 
@@ -593,6 +624,12 @@ def record_group_confirmation_fingerprint(records):
         return None
     return tuple(fingerprint)
 
+def _confirmation_monotonic(value, fallback):
+    if isinstance(value, dict):
+        value = value.get("monotonic")
+    return value if isinstance(value, (int, float)) else fallback
+
+
 def reconcile_record_confirmations(records, previous, now, delay_seconds):
     """Keep only unchanged candidates and return groups old enough to post."""
     previous = previous if isinstance(previous, dict) else {}
@@ -603,39 +640,69 @@ def reconcile_record_confirmations(records, previous, now, delay_seconds):
         fingerprint = record_group_confirmation_fingerprint(record_group)
         if fingerprint is None:
             continue
-        first_seen = previous.get(fingerprint, now)
-        current[fingerprint] = first_seen
+        previous_value = previous.get(fingerprint)
+        first_seen = _confirmation_monotonic(previous_value, now)
+        first_seen_at = (
+            previous_value.get("first_seen_at")
+            if isinstance(previous_value, dict)
+            else None
+        ) or utc_now_iso()
+        current[fingerprint] = {
+            "monotonic": first_seen,
+            "first_seen_at": first_seen_at,
+        }
         if now - first_seen >= delay_seconds:
+            confirmed_at = utc_now_iso()
+            for record in record_group:
+                record["_monitor"] = {
+                    "first_seen_at": first_seen_at,
+                    "confirmed_at": confirmed_at,
+                }
             confirmed.append(record_group)
 
     return confirmed, current
 
 def next_confirmation_delay(confirmations, now, delay_seconds):
     remaining = [
-        delay_seconds - (now - first_seen)
-        for first_seen in confirmations.values()
-        if now - first_seen < delay_seconds
+        delay_seconds - (now - _confirmation_monotonic(value, now))
+        for value in confirmations.values()
+        if now - _confirmation_monotonic(value, now) < delay_seconds
     ]
     return max(0, min(remaining)) if remaining else None
 
-def already_sent_record(dedupe_map, pending_map, target_key, record):
+def already_sent_record(
+    dedupe_map,
+    pending_map,
+    target_key,
+    record,
+    dedupe_row=None,
+):
     record_key = record_dedupe_key(record)
     if record_key is None:
         print("[ERROR] record has no canonical dedupe key:", record)
         return True
 
-    already_sent = dedupe_map.get(target_key, [])
     pending_records = pending_map.get(target_key, {})
-    sent_keys = {str(item) for item in already_sent}
     pending_keys = {
         str(item)
         for item in pending_records.keys()
     } if isinstance(pending_records, dict) else set()
-    sent = any(
-        str(key) in sent_keys or str(key) in pending_keys
+    if any(
+        str(key) in pending_keys
+        for key in equivalent_record_dedupe_keys(record)
+    ):
+        return True
+
+    data = dedupe_row.get("data") if isinstance(dedupe_row, dict) else None
+    if is_slot_storage(data):
+        return already_delivered(data["record_slots"], target_key, record)
+
+    already_sent = dedupe_map.get(target_key, [])
+    sent_keys = {str(item) for item in already_sent}
+    return any(
+        str(key) in sent_keys
         for key in equivalent_record_dedupe_keys(record)
     )
-    return sent
 
 def mark_sent_record(dedupe_map, target_key, record):
     record_key = record_dedupe_key(record)
@@ -701,16 +768,57 @@ def reserve_pending_records(dedupe_row, pending_map, target_key, records, source
     save_live_record_dedupe_row(dedupe_row)
     return True
 
-def mark_sent_and_clear_pending(dedupe_row, dedupe_map, pending_map, target_key, record):
-    mark_sent_record(dedupe_map, target_key, record)
+def mark_sent_and_clear_pending(
+    dedupe_row,
+    dedupe_map,
+    pending_map,
+    target_key,
+    record,
+    source=None,
+    sent_at=None,
+    message_id=None,
+):
+    data = dedupe_row.get("data") if isinstance(dedupe_row, dict) else None
+    if is_slot_storage(data):
+        record_delivery(
+            ensure_record_slots(data),
+            target_key,
+            record,
+            source,
+            sent_at=sent_at,
+            message_id=message_id,
+        )
+    else:
+        mark_sent_record(dedupe_map, target_key, record)
     record_keys = clear_pending_record(pending_map, target_key, record)
     pending_removals = {target_key: record_keys} if record_keys else None
     save_live_record_dedupe_row(dedupe_row, pending_removals=pending_removals)
 
-def mark_sent_records_and_clear_pending(dedupe_row, dedupe_map, pending_map, target_key, records):
+def mark_sent_records_and_clear_pending(
+    dedupe_row,
+    dedupe_map,
+    pending_map,
+    target_key,
+    records,
+    source=None,
+    sent_at=None,
+    message_id=None,
+):
     pending_removal_keys = []
+    data = dedupe_row.get("data") if isinstance(dedupe_row, dict) else None
+    slots = ensure_record_slots(data) if is_slot_storage(data) else None
     for record in records:
-        mark_sent_record(dedupe_map, target_key, record)
+        if slots is not None:
+            record_delivery(
+                slots,
+                target_key,
+                record,
+                source,
+                sent_at=sent_at,
+                message_id=message_id,
+            )
+        else:
+            mark_sent_record(dedupe_map, target_key, record)
         pending_removal_keys.extend(
             clear_pending_record(pending_map, target_key, record)
         )
@@ -1596,7 +1704,13 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
             for record in records:
                 if not target_should_post_record(record, target):
                     continue
-                if already_sent_record(dedupe_map, pending_map, target_key, record):
+                if already_sent_record(
+                    dedupe_map,
+                    pending_map,
+                    target_key,
+                    record,
+                    dedupe_row=dedupe_row,
+                ):
                     continue
                 send_records.append(record)
 
@@ -1635,7 +1749,7 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                 continue
 
             try:
-                await ch.send(embed=q)
+                message = await ch.send(embed=q)
             except Exception as exc:
                 print(f"[ERROR] records send failed for {target_key} in channel {channel}: {exc}")
                 try:
@@ -1657,6 +1771,9 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                     pending_map,
                     target_key,
                     send_records,
+                    source=source,
+                    sent_at=utc_now_iso(),
+                    message_id=getattr(message, "id", None),
                 )
                 print(
                     f"[INFO] {source} records sent target {target_key} "
@@ -1844,7 +1961,13 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
         for record in records:
             if not target_should_post_record(record, target):
                 continue
-            if already_sent_record(dedupe_map, pending_map, target_key, record):
+            if already_sent_record(
+                dedupe_map,
+                pending_map,
+                target_key,
+                record,
+                dedupe_row=dedupe_row,
+            ):
                 continue
             send_records.append(record)
 
@@ -1883,7 +2006,7 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
             return
 
         try:
-            await ch.send(embed=q)
+            message = await ch.send(embed=q)
         except Exception as exc:
             print(f"[ERROR] official records send failed for {target_key} in channel {channel}: {exc}")
             try:
@@ -1905,6 +2028,9 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                 pending_map,
                 target_key,
                 send_records,
+                source="wca_official",
+                sent_at=utc_now_iso(),
+                message_id=getattr(message, "id", None),
             )
             print(f"[INFO] official {tag} sent target {target_key} to channel {channel}")
         except Exception as exc:
