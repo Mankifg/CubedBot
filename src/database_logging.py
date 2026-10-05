@@ -16,7 +16,7 @@ PRUNE_INTERVAL_SECONDS = 6 * 60 * 60
 
 
 def database_logging_enabled():
-    return os.getenv("DATABASE_LOGGING_ENABLED", "0").strip().lower() in {
+    return os.getenv("DATABASE_LOGGING_ENABLED", "1").strip().lower() in {
         "1", "true", "yes", "on",
     }
 

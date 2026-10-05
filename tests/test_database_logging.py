@@ -1,7 +1,14 @@
 import io
+import os
 import unittest
+from unittest.mock import patch
 
-from src.database_logging import DatabaseLogSink, TeeLogStream, infer_level
+from src.database_logging import (
+    DatabaseLogSink,
+    TeeLogStream,
+    database_logging_enabled,
+    infer_level,
+)
 
 
 class FakeQuery:
@@ -33,6 +40,14 @@ class FakeClient:
 
 
 class DatabaseLoggingTests(unittest.TestCase):
+    def test_database_logging_is_enabled_by_default(self):
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertTrue(database_logging_enabled())
+
+    def test_database_logging_can_be_explicitly_disabled(self):
+        with patch.dict(os.environ, {"DATABASE_LOGGING_ENABLED": "0"}, clear=True):
+            self.assertFalse(database_logging_enabled())
+
     def test_level_is_derived_without_changing_message(self):
         self.assertEqual(infer_level("[ERROR] failed", "stdout"), "ERROR")
         self.assertEqual(infer_level("[WARN] retry", "stdout"), "WARN")
