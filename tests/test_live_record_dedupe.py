@@ -398,17 +398,17 @@ class CubingChinaEventTests(unittest.IsolatedAsyncioTestCase):
             (0, False),
         )
 
-    def test_short_stream_failures_warn_first_and_every_fifth_time(self):
+    def test_short_stream_failures_warn_first_and_every_tenth_time(self):
         failures = 0
         warnings = []
-        for _ in range(10):
+        for _ in range(30):
             failures, should_warn = (
                 LIVE_RECORDS.cubing_china_stream_failure_state(failures, 10)
             )
             if should_warn:
                 warnings.append(failures)
 
-        self.assertEqual(warnings, [1, 5, 10])
+        self.assertEqual(warnings, [1, 10, 20, 30])
 
     async def test_sse_upserts_only_trigger_authoritative_snapshot(self):
         cog = object.__new__(LIVE_RECORDS.liveRecordsCog)

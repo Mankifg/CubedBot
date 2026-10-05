@@ -92,7 +92,7 @@ def cubing_china_stream_failure_state(failures, connected_seconds):
     if connected_seconds >= 60:
         return 0, False
     failures += 1
-    return failures, failures == 1 or failures % 5 == 0
+    return failures, failures == 1 or failures % 10 == 0
 
 WCA_EVENT_NAMES = {
     "222": "2x2x2 Cube",

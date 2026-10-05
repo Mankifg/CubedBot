@@ -5,6 +5,7 @@ import queue
 import sys
 import threading
 import time
+import uuid
 from datetime import datetime, timezone
 
 
@@ -63,6 +64,7 @@ class DatabaseLogSink:
         if not message:
             return
         row = {
+            "entry_id": str(uuid.uuid4()),
             "created_at": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
             "level": infer_level(message, stream),
             "stream": stream,
@@ -87,7 +89,12 @@ class DatabaseLogSink:
     def _insert(self, rows):
         (
             self.client.table(LOG_TABLE)
-            .insert(rows, returning="minimal")
+            .upsert(
+                rows,
+                on_conflict="entry_id",
+                ignore_duplicates=True,
+                returning="minimal",
+            )
             .execute()
         )
 
@@ -118,7 +125,10 @@ class DatabaseLogSink:
                 if time.monotonic() - self._last_prune >= PRUNE_INTERVAL_SECONDS:
                     self._prune()
             except Exception as exc:
-                self._notice(f"database logging unavailable: {exc}")
+                self._notice(
+                    "database logging unavailable: "
+                    f"{type(exc).__name__}: {exc}"
+                )
                 self.stop_event.wait(retry_delay)
                 retry_delay = min(retry_delay * 2, 60)
 
@@ -160,7 +170,7 @@ class TeeLogStream(io.TextIOBase):
 _installed_sink = None
 
 
-def install_database_logging(client, enabled=None):
+def install_database_logging(client_factory, enabled=None):
     global _installed_sink
     if _installed_sink is not None:
         return _installed_sink
@@ -171,6 +181,7 @@ def install_database_logging(client, enabled=None):
 
     original_stdout = sys.stdout
     original_stderr = sys.stderr
+    client = client_factory()
     sink = DatabaseLogSink(client, original_stderr)
     sys.stdout = TeeLogStream(original_stdout, sink, "stdout")
     sys.stderr = TeeLogStream(original_stderr, sink, "stderr")

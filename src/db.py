@@ -10,7 +10,12 @@ from datetime import datetime as dt
 url: str = os.environ.get("SUPA_URL")
 key: str = os.environ.get("SUPA_KEY")
 
-supabase: Client = create_client(url, key)
+
+def create_database_client() -> Client:
+    return create_client(url, key)
+
+
+supabase: Client = create_database_client()
 
 TABLE = "main"
 TABLE2 = "vars"
@@ -73,8 +78,9 @@ def save_user_data(user_data):
 
 
 
-def load_second_table_idd(idd):
-    query = supabase.from_(TABLE2).select('*', count='exact').eq('id', idd)
+def load_second_table_idd(idd, client=None):
+    database = client or supabase
+    query = database.from_(TABLE2).select('*', count='exact').eq('id', idd)
     result = dict(query.execute())
     return result.get('data')[0] 
 

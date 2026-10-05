@@ -15,8 +15,9 @@ token = os.getenv("TOKEN")
 
 import src.db as db
 from src.database_logging import install_database_logging
+from src.startup_ping import STARTUP_PING_RETRY_DELAYS, load_startup_ping_row
 
-database_log_sink = install_database_logging(db.supabase)
+database_log_sink = install_database_logging(db.create_database_client)
 
 status = cycle(
     [
@@ -84,7 +85,19 @@ def _suppress_embed_kwargs(send_callable):
 
 async def send_startup_ping():
     try:
-        row = db.load_second_table_idd(9)
+        row = await load_startup_ping_row(
+            db.create_database_client,
+            db.load_second_table_idd,
+        )
+    except Exception as exc:
+        print(
+            f"[WARN] Startup ping configuration load failed after "
+            f"{len(STARTUP_PING_RETRY_DELAYS)} attempts: "
+            f"{type(exc).__name__}: {exc}"
+        )
+        return
+
+    try:
         data = row.get("data", {})
         channel_id = data.get("startup_ping_channel")
         if not channel_id:
@@ -100,7 +113,9 @@ async def send_startup_ping():
             **_suppress_embed_kwargs(channel.send),
         )
     except Exception as exc:
-        print(f"[WARN] Startup ping failed: {exc}")
+        print(
+            f"[WARN] Startup ping send failed: {type(exc).__name__}: {exc}"
+        )
 
 @bot.event
 async def on_ready():

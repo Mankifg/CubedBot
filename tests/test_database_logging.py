@@ -1,8 +1,11 @@
 import io
 import os
+import sys
 import unittest
-from unittest.mock import patch
+import uuid
+from unittest.mock import Mock, patch
 
+import src.database_logging as database_logging
 from src.database_logging import (
     DatabaseLogSink,
     TeeLogStream,
@@ -17,8 +20,20 @@ class FakeQuery:
         self.kind = kind
         self.payload = payload
 
-    def insert(self, rows, returning=None):
-        self.calls.append(("insert", rows, returning))
+    def upsert(
+        self,
+        rows,
+        on_conflict=None,
+        ignore_duplicates=False,
+        returning=None,
+    ):
+        self.calls.append((
+            "upsert",
+            rows,
+            on_conflict,
+            ignore_duplicates,
+            returning,
+        ))
         return self
 
     def execute(self):
@@ -69,17 +84,71 @@ class DatabaseLoggingTests(unittest.TestCase):
             ("second line", "stdout"),
         ])
 
-    def test_sink_uses_minimal_insert_and_limited_prune_rpc(self):
+    def test_enqueued_rows_receive_stable_unique_ids(self):
+        sink = DatabaseLogSink(FakeClient(), io.StringIO())
+
+        sink.enqueue("hello", "stdout")
+        sink.enqueue("again", "stdout")
+        first = sink.queue.get_nowait()
+        second = sink.queue.get_nowait()
+
+        self.assertEqual(uuid.UUID(first["entry_id"]).version, 4)
+        self.assertEqual(uuid.UUID(second["entry_id"]).version, 4)
+        self.assertNotEqual(first["entry_id"], second["entry_id"])
+
+    def test_sink_uses_idempotent_upsert_and_limited_prune_rpc(self):
         client = FakeClient()
         sink = DatabaseLogSink(client, io.StringIO())
-        rows = [{"message": "hello"}]
+        rows = [{"entry_id": "fixed-id", "message": "hello"}]
 
+        sink._insert(rows)
         sink._insert(rows)
         sink._prune()
 
         self.assertIn(("table", "bot_logs"), client.calls)
-        self.assertIn(("insert", rows, "minimal"), client.calls)
+        upserts = [call for call in client.calls if call[0] == "upsert"]
+        self.assertEqual(upserts, [
+            ("upsert", rows, "entry_id", True, "minimal"),
+            ("upsert", rows, "entry_id", True, "minimal"),
+        ])
         self.assertIn(("rpc", "prune_bot_logs"), client.calls)
+
+    def test_installation_builds_a_dedicated_client(self):
+        operational_client = FakeClient()
+        logging_client = FakeClient()
+        factory = Mock(return_value=logging_client)
+        original_stdout = sys.stdout
+        original_stderr = sys.stderr
+
+        try:
+            with (
+                patch.object(database_logging, "_installed_sink", None),
+                patch.object(DatabaseLogSink, "start"),
+                patch.object(database_logging.atexit, "register"),
+            ):
+                sink = database_logging.install_database_logging(
+                    factory,
+                    enabled=True,
+                )
+
+            factory.assert_called_once_with()
+            self.assertIs(sink.client, logging_client)
+            self.assertIsNot(sink.client, operational_client)
+        finally:
+            sys.stdout = original_stdout
+            sys.stderr = original_stderr
+
+    def test_disabled_installation_does_not_build_a_client(self):
+        factory = Mock()
+
+        with patch.object(database_logging, "_installed_sink", None):
+            sink = database_logging.install_database_logging(
+                factory,
+                enabled=False,
+            )
+
+        self.assertIsNone(sink)
+        factory.assert_not_called()
 
 
 if __name__ == "__main__":
