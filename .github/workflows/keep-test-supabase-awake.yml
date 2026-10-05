@@ -1,0 +1,32 @@
+name: Keep test Supabase awake
+
+on:
+  schedule:
+    # Avoid the busiest part of the hour, when scheduled runs are more likely
+    # to be delayed. Two daily reads leave ample margin before a free project
+    # can be paused for inactivity.
+    - cron: "17 5,17 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    name: Read one test database row
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Query test Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.TEST_SUPABASE_KEY }}
+        run: |
+          curl --fail --silent --show-error \
+            --max-time 30 \
+            --get "${SUPABASE_URL}/rest/v1/vars" \
+            --data-urlencode "select=id" \
+            --data-urlencode "id=eq.4" \
+            --data-urlencode "limit=1" \
+            --header "apikey: ${SUPABASE_KEY}" \
+            --header "Authorization: Bearer ${SUPABASE_KEY}" \
+            --output /dev/null
