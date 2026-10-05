@@ -23,15 +23,3 @@ You will need:
 This bot uses following features:
 * [supabase](https://supabase.com/) - storing data in database
 * [pyTwistyScrambler](https://github.com/euphwes/pyTwistyScrambler) - generating random scrambles
-
-## Database logs
-
-Terminal logs can be retained in Supabase for seven days. Run
-`sql/001_bot_logs.sql` manually in the intended Supabase project. Logging is
-enabled by default; set `DATABASE_LOGGING_ENABLED=0` only when it needs to be
-disabled explicitly. The logger requires the bot's server-side
-secret/service-role key; public roles have no access to the log table.
-
-Existing installations created before log entry IDs were introduced must run
-`sql/002_bot_log_entry_ids.sql` before deploying a bot version that uses
-idempotent log batch retries.
