@@ -82,6 +82,11 @@ class CubingChinaRecordsTests(unittest.TestCase):
             record["result"]["round"]["competitionEvent"]["competition"]["wcaId"],
             "DeqingSmallSpecial2026",
         )
+        self.assertEqual(record["result"]["round"]["number"], 3)
+        self.assertEqual(
+            record["result"]["round"]["competitionEvent"]["competition"]["cubingChinaAlias"],
+            "Deqing-Small-Special-2026",
+        )
 
     def test_trailing_unentered_attempts_are_removed(self):
         self.assertEqual(trim_unentered_attempts([18, 22, 20, 0, 0]), [18, 22, 20])

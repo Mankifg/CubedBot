@@ -13,7 +13,7 @@ import unicodedata
 
 from datetime import datetime
 from discord.ext import tasks
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 from zoneinfo import ZoneInfo
 
 import src.wca_function as wca_function
@@ -24,7 +24,7 @@ from src.cubing_china_records import (
     active_wca_competitions,
     live_result_to_records,
 )
-from src.guild_access import ensure_primary_guild, primary_guild_ids
+from src.guild_access import primary_guild_ids
 
 # Static WCA Europe ISO2 list (sourced from /api/v0/countries on 2026-03-17).
 EUROPEAN_ISO2 = {
@@ -37,8 +37,11 @@ CUBING_CHINA_ENABLED = os.getenv(
     "1",
 ).strip().lower() not in {"0", "false", "no", "off"}
 CUBING_CHINA_SNAPSHOT_SECONDS = 60
+CUBING_CHINA_CONFIRMATION_SECONDS = 180
 CUBING_CHINA_GRACE_DAYS = 2
 CUBING_CHINA_TIMEZONE = ZoneInfo("Asia/Shanghai")
+WCA_LIVE_POLL_SECONDS = 300
+WCA_LIVE_CONFIRMATION_SECONDS = 180
 RECORD_SOURCE_DEFAULTS = {
     "wca_live": True,
     "cubing_china": True,
@@ -47,10 +50,25 @@ RECORD_SOURCE_DEFAULTS = {
 RECORD_SOURCE_LABELS = {
     "wca_live": "WCA Live",
     "cubing_china": "Cubing China",
-    "wca_official": "WCA official fallback",
+    "wca_official": "WCA Official",
 }
-RECORD_SOURCE_CONTROL_USER_IDS = {697176514676129933}
+RECORD_SOURCE_CONTROL_USER_IDS = {
+    697176514676129933,
+    732917883591589920,
+}
 RECORD_SOURCE_CONTROL_ROLE_IDS = set()
+RECORD_SOURCE_GUILD_IDS = primary_guild_ids()
+RECORD_SOURCE_CHOICES = [
+    discord.OptionChoice("All", "all"),
+    *(
+        discord.OptionChoice(label, source)
+        for source, label in RECORD_SOURCE_LABELS.items()
+    ),
+]
+RECORD_SOURCE_STATE_CHOICES = [
+    discord.OptionChoice("On", "on"),
+    discord.OptionChoice("Off", "off"),
+]
 
 REQUEST_HEADERS = {
     "User-Agent": (
@@ -253,7 +271,7 @@ def load_record_source_states():
     return normalize_record_source_states(row.get("data"))
 
 def save_record_source_state(source, enabled):
-    if source not in RECORD_SOURCE_DEFAULTS:
+    if source != "all" and source not in RECORD_SOURCE_DEFAULTS:
         raise ValueError(f"unknown record source: {source}")
 
     row = db.load_second_table_idd(3)
@@ -262,7 +280,13 @@ def save_record_source_state(source, enabled):
         raise ValueError("record configuration has invalid data")
 
     states = normalize_record_source_states(data)
-    states[source] = bool(enabled)
+    if source == "all":
+        states = {
+            source_name: bool(enabled)
+            for source_name in RECORD_SOURCE_DEFAULTS
+        }
+    else:
+        states[source] = bool(enabled)
     data["record_sources"] = states
     db.save_second_table_idd(row)
     return states
@@ -544,6 +568,56 @@ def grouped_record_batches(records):
 
     return batches
 
+def record_group_confirmation_fingerprint(records):
+    fingerprint = []
+    try:
+        for record in ordered_record_group(records):
+            result = record["result"]
+            person = result["person"]
+            round_obj = result["round"]
+            attempts = tuple(
+                attempt.get("result")
+                for attempt in result.get("attempts", [])
+                if isinstance(attempt, dict)
+            )
+            fingerprint.append((
+                record_canonical_key(record),
+                _record_tag(record),
+                record.get("type"),
+                record.get("attemptResult"),
+                str(round_obj.get("id")),
+                str(person.get("country", {}).get("iso2", "")).upper(),
+                attempts,
+            ))
+    except (AttributeError, KeyError, TypeError):
+        return None
+    return tuple(fingerprint)
+
+def reconcile_record_confirmations(records, previous, now, delay_seconds):
+    """Keep only unchanged candidates and return groups old enough to post."""
+    previous = previous if isinstance(previous, dict) else {}
+    current = {}
+    confirmed = []
+
+    for record_group in grouped_record_batches(records):
+        fingerprint = record_group_confirmation_fingerprint(record_group)
+        if fingerprint is None:
+            continue
+        first_seen = previous.get(fingerprint, now)
+        current[fingerprint] = first_seen
+        if now - first_seen >= delay_seconds:
+            confirmed.append(record_group)
+
+    return confirmed, current
+
+def next_confirmation_delay(confirmations, now, delay_seconds):
+    remaining = [
+        delay_seconds - (now - first_seen)
+        for first_seen in confirmations.values()
+        if now - first_seen < delay_seconds
+    ]
+    return max(0, min(remaining)) if remaining else None
+
 def already_sent_record(dedupe_map, pending_map, target_key, record):
     record_key = record_dedupe_key(record)
     if record_key is None:
@@ -667,6 +741,55 @@ def clear_pending_records_after_failed_send(dedupe_row, pending_map, target_key,
 
 def records_url(country_name):
     return f"{RECORDS_PAGE_URL}?region={quote(country_name)}&show=mixed"
+
+def record_competition_url(record, source):
+    try:
+        result = record["result"]
+        round_obj = result["round"]
+        competition_event = round_obj["competitionEvent"]
+        competition = competition_event["competition"]
+        event_id = competition_event["event"]["id"]
+    except (AttributeError, KeyError, TypeError):
+        return None
+
+    if source == "wca_live":
+        competition_id = competition.get("id")
+        round_id = round_obj.get("id")
+        if competition_id is not None and round_id is not None:
+            return (
+                "https://live.worldcubeassociation.org/competitions/"
+                f"{quote(str(competition_id), safe='')}/rounds/"
+                f"{quote(str(round_id), safe='')}"
+            )
+
+    if source == "cubing_china":
+        alias = competition.get("cubingChinaAlias")
+        round_number = round_obj.get("number")
+        if alias and round_number is not None:
+            query = urlencode({
+                "eventId": event_id,
+                "roundNumber": round_number,
+            })
+            return (
+                f"https://cubing.com/competition/{quote(str(alias), safe='')}"
+                f"/live?{query}"
+            )
+
+    if source == "wca_official":
+        tag = display_tag(record)
+        if tag == "WR":
+            return records_url("World")
+        if tag == "ER":
+            return records_url("_Europe")
+        if tag == "NR":
+            country = result.get("person", {}).get("country", {})
+            country_name = country.get("name") or country_name_from_iso2(
+                country.get("iso2")
+            )
+            if country_name:
+                return records_url(country_name)
+
+    return None
 
 def country_iso2_from_wca_id(country_id):
     if not isinstance(country_id, str):
@@ -821,7 +944,7 @@ def record_group_title(show_tag, records, event_id):
         return f"{show_tag} {shown_types[0]} & {shown_types[1]}"
     return f"{show_tag} {shown_types[0]}"
 
-def build_record_group_embed(records):
+def build_record_group_embed(records, source=None):
     records = ordered_record_group(records)
     record = records[0]
     show_tag = display_tag(record)
@@ -876,7 +999,13 @@ def build_record_group_embed(records):
     )
     event_name = round_obj["competitionEvent"]["event"]["name"]
     comp_name = round_obj["competitionEvent"]["competition"]["name"]
-    result_lines = f"{comp_name}\n\n"
+    competition_url = record_competition_url(record, source)
+    shown_competition = (
+        f"[{comp_name}]({competition_url})"
+        if competition_url
+        else comp_name
+    )
+    result_lines = f"{shown_competition}\n\n"
     result_lines += "\n".join(
         f"**{record_result_label(record, event_id)}:** "
         f"`{format_record_result(event_id, record['type'], record['attemptResult'])}`"
@@ -903,8 +1032,8 @@ def build_record_group_embed(records):
 
     return q
 
-def build_record_embed(record):
-    return build_record_group_embed([record])
+def build_record_embed(record, source=None):
+    return build_record_group_embed([record], source=source)
 
 class liveRecordsCog(commands.Cog, name="live records monitor"):
     def __init__(self, bot: commands.bot):
@@ -915,8 +1044,13 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
         self.cubing_china_competitions = {}
         self.cubing_china_workers = {}
         self.cubing_china_etags = {}
+        self.cubing_china_snapshot_cache = {}
+        self.cubing_china_snapshot_locks = {}
+        self.cubing_china_confirmations = {}
         self.cubing_china_round_revisions = {}
         self.cubing_china_viewer_id = secrets.token_hex(16)
+        self.wca_live_confirmations = {}
+        self.wca_live_confirmation_task = None
         self.wca_live_check.start()
         self.wca_official_records_check.start()
         if CUBING_CHINA_ENABLED:
@@ -927,6 +1061,8 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
         self.wca_official_records_check.cancel()
         if CUBING_CHINA_ENABLED:
             self.cubing_china_discovery.cancel()
+        if self.wca_live_confirmation_task is not None:
+            self.wca_live_confirmation_task.cancel()
         self.bot.loop.create_task(self._shutdown_cubing_china())
 
     async def _shutdown_cubing_china(self):
@@ -939,12 +1075,15 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
         if self.cubing_china_session is not None:
             await self.cubing_china_session.close()
             self.cubing_china_session = None
+        self.cubing_china_snapshot_cache.clear()
+        self.cubing_china_snapshot_locks.clear()
+        self.cubing_china_confirmations.clear()
 
     async def _ensure_cubing_china_session(self):
         if self.cubing_china_session is None or self.cubing_china_session.closed:
             self.cubing_china_session = aiohttp.ClientSession(headers={
                 "User-Agent": (
-                    "CubedBot/1.2 record-monitor "
+                    "CubedBot/1.3 record-monitor "
                     "(+https://github.com/Mankifg/CubedBot)"
                 ),
                 "Accept": "application/json",
@@ -966,7 +1105,7 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
         for source, label in RECORD_SOURCE_LABELS.items():
             configured = bool(self.record_source_states.get(source, True))
             effective = self._record_source_enabled(source)
-            state = "enabled" if effective else "disabled"
+            state = "On" if effective else "Off"
             if source == "cubing_china" and configured and not effective:
                 state += " (environment override)"
             lines.append(f"**{label}:** {state}")
@@ -991,6 +1130,51 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
         except Exception as exc:
             print(f"[ERROR] immediate {source} record check failed: {exc}")
             traceback.print_exc()
+
+    def _stop_wca_live_confirmation(self):
+        task = self.wca_live_confirmation_task
+        self.wca_live_confirmation_task = None
+        self.wca_live_confirmations.clear()
+        if task is not None:
+            task.cancel()
+
+    def _schedule_wca_live_confirmation(self):
+        if not self._record_source_enabled("wca_live"):
+            return
+        task = self.wca_live_confirmation_task
+        if task is not None and not task.done():
+            return
+        delay = next_confirmation_delay(
+            self.wca_live_confirmations,
+            time.monotonic(),
+            WCA_LIVE_CONFIRMATION_SECONDS,
+        )
+        if delay is None:
+            return
+        self.wca_live_confirmation_task = self.bot.loop.create_task(
+            self._confirm_wca_live_after(delay)
+        )
+
+    async def _confirm_wca_live_after(self, delay):
+        current_task = asyncio.current_task()
+        try:
+            await asyncio.sleep(delay)
+            if self.wca_live_confirmation_task is current_task:
+                self.wca_live_confirmation_task = None
+            async with self.records_check_lock:
+                self._refresh_record_source_states()
+                if self._record_source_enabled("wca_live"):
+                    await self._wca_live_check()
+                else:
+                    self.wca_live_confirmations.clear()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            print(f"[ERROR] WCA Live confirmation check failed: {exc}")
+            traceback.print_exc()
+        finally:
+            if self.wca_live_confirmation_task is current_task:
+                self.wca_live_confirmation_task = None
 
     @tasks.loop(hours=2)
     async def cubing_china_discovery(self):
@@ -1063,6 +1247,9 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                 worker.cancel()
                 stopped_workers.append(worker)
             self.cubing_china_etags.pop(alias, None)
+            self.cubing_china_snapshot_cache.pop(alias, None)
+            self.cubing_china_snapshot_locks.pop(alias, None)
+            self.cubing_china_confirmations.pop(alias, None)
             self.cubing_china_round_revisions.pop(alias, None)
 
         if stopped_workers:
@@ -1122,29 +1309,40 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                 print(f"[WARN] Cubing China record snapshot failed for {alias}: {exc}")
 
     async def _fetch_cubing_china_snapshot(self, alias):
-        session = await self._ensure_cubing_china_session()
-        headers = {}
-        etag = self.cubing_china_etags.get(alias)
-        if etag:
-            headers["If-None-Match"] = etag
+        snapshot_locks = getattr(self, "cubing_china_snapshot_locks", None)
+        if snapshot_locks is None:
+            snapshot_locks = {}
+            self.cubing_china_snapshot_locks = snapshot_locks
+        snapshot_lock = snapshot_locks.setdefault(alias, asyncio.Lock())
 
-        async with session.get(
-            f"{CUBING_CHINA_API_BASE}/competitions/{quote(alias, safe='')}/live/records",
-            headers=headers,
-            timeout=aiohttp.ClientTimeout(total=30),
-        ) as response:
-            if response.status == 304:
-                return
-            response.raise_for_status()
-            payload = await response.json(content_type=None)
-            response_etag = response.headers.get("ETag")
-            if response_etag:
-                self.cubing_china_etags[alias] = response_etag
+        async with snapshot_lock:
+            session = await self._ensure_cubing_china_session()
+            headers = {}
+            etag = self.cubing_china_etags.get(alias)
+            if etag:
+                headers["If-None-Match"] = etag
 
-        results = payload.get("data", []) if isinstance(payload, dict) else []
-        if not isinstance(results, list):
-            raise ValueError("Cubing China records response has invalid data")
-        await self._process_cubing_china_results(alias, results)
+            async with session.get(
+                f"{CUBING_CHINA_API_BASE}/competitions/{quote(alias, safe='')}/live/records",
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=30),
+            ) as response:
+                if response.status == 304:
+                    results = self.cubing_china_snapshot_cache.get(alias)
+                    if results is not None:
+                        await self._process_cubing_china_results(alias, results)
+                    return
+                response.raise_for_status()
+                payload = await response.json(content_type=None)
+                response_etag = response.headers.get("ETag")
+                if response_etag:
+                    self.cubing_china_etags[alias] = response_etag
+
+            results = payload.get("data", []) if isinstance(payload, dict) else []
+            if not isinstance(results, list):
+                raise ValueError("Cubing China records response has invalid data")
+            self.cubing_china_snapshot_cache[alias] = results
+            await self._process_cubing_china_results(alias, results)
 
     async def _consume_cubing_china_stream(self, alias):
         session = await self._ensure_cubing_china_session()
@@ -1185,8 +1383,10 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
         payload = event.get("payload")
         if not isinstance(payload, dict):
             return
-        results = payload.get("upsertedResults")
-        if not isinstance(results, list):
+        if not any(
+            key in payload
+            for key in ("upsertedResults", "removedResultIds", "round")
+        ):
             return
 
         round_data = payload.get("round")
@@ -1200,12 +1400,16 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                 revision_gap = previous is not None and revision > previous + 1
                 revisions[round_id] = max(revision, previous or revision)
 
-        await self._process_cubing_china_results(alias, results)
+        # Cubing China's own frontend treats SSE as invalidation. Record flags in
+        # upsertedResults can be transient or stale, so only the authoritative
+        # /live/records snapshot may produce candidates.
         if revision_gap:
-            await self._fetch_cubing_china_snapshot(alias)
+            self.cubing_china_etags.pop(alias, None)
+        await self._fetch_cubing_china_snapshot(alias)
 
     async def _process_cubing_china_results(self, alias, results):
         if not self._record_source_enabled("cubing_china"):
+            self.cubing_china_confirmations.pop(alias, None)
             return
         competition = self.cubing_china_competitions.get(alias)
         if not isinstance(competition, dict):
@@ -1222,7 +1426,18 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
             records.extend(
                 live_result_to_records(result, competition, event_name)
             )
-        if not records:
+        confirmations = getattr(self, "cubing_china_confirmations", None)
+        if confirmations is None:
+            confirmations = {}
+            self.cubing_china_confirmations = confirmations
+        confirmed_groups, current = reconcile_record_confirmations(
+            records,
+            confirmations.get(alias, {}),
+            time.monotonic(),
+            CUBING_CHINA_CONFIRMATION_SECONDS,
+        )
+        confirmations[alias] = current
+        if not confirmed_groups:
             return
 
         async with self.records_check_lock:
@@ -1237,7 +1452,7 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
             ]
             dedupe_map = ensure_dedupe_map(dedupe_row, target_keys)
             pending_map = ensure_pending_map(dedupe_row, target_keys)
-            for record_group in grouped_record_batches(records):
+            for record_group in confirmed_groups:
                 await self._process_wca_live_records(
                     record_group,
                     targets,
@@ -1248,12 +1463,13 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                 )
 
 
-    @tasks.loop(seconds=600)
+    @tasks.loop(seconds=WCA_LIVE_POLL_SECONDS)
     async def wca_live_check(self):
         try:
             async with self.records_check_lock:
                 self._refresh_record_source_states()
                 if not self._record_source_enabled("wca_live"):
+                    self._stop_wca_live_confirmation()
                     return
                 await self._wca_live_check()
         except Exception as exc:
@@ -1276,56 +1492,23 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
         pending_map = ensure_pending_map(dedupe_row, target_keys)
 
         try:
-            resp = requests.post(
-                url="https://live.worldcubeassociation.org/api/graphql",
-                json={
-                    "query": """
-                    query {
-                        recentRecords {
-                        id
-                        type
-                        tag
-                        attemptResult
-                        result {
-                            attempts {
-                            result
-                            }
-                            person {
-                            name
-                            wcaId
-                            country {
-                                iso2
-                                name
-                            }
-                            }
-                            round {
-                            id
-                            competitionEvent {
-                                event {
-                                id
-                                name
-                                }
-                                competition {
-                                id
-                                name
-                                wcaId
-                                }
-                            }
-                            }
-                        }
-                        }
-                    }
-                    """
-                },
-                timeout=20,
+            records_snapshot = await asyncio.to_thread(
+                self._fetch_wca_live_records
             )
-            resp.raise_for_status()
-            resp = resp.json()["data"]["recentRecords"]
         except Exception as exc:
             print(f"[ERROR] wca live record check failed: {exc}")
             return
-        
-        for records in grouped_record_batches(resp):
+
+        confirmed_groups, self.wca_live_confirmations = (
+            reconcile_record_confirmations(
+                records_snapshot,
+                self.wca_live_confirmations,
+                time.monotonic(),
+                WCA_LIVE_CONFIRMATION_SECONDS,
+            )
+        )
+
+        for records in confirmed_groups:
             try:
                 await self._process_wca_live_records(
                     records,
@@ -1342,6 +1525,58 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                 ]
                 print(f"[ERROR] failed to process WCA Live records {record_ids}: {exc}")
                 traceback.print_exc()
+
+        self._schedule_wca_live_confirmation()
+
+    def _fetch_wca_live_records(self):
+        response = requests.post(
+            url="https://live.worldcubeassociation.org/api/graphql",
+            json={
+                "query": """
+                query {
+                    recentRecords {
+                    id
+                    type
+                    tag
+                    attemptResult
+                    result {
+                        attempts {
+                        result
+                        }
+                        person {
+                        name
+                        wcaId
+                        country {
+                            iso2
+                            name
+                        }
+                        }
+                        round {
+                        id
+                        competitionEvent {
+                            event {
+                            id
+                            name
+                            }
+                            competition {
+                            id
+                            name
+                            wcaId
+                            }
+                        }
+                        }
+                    }
+                    }
+                }
+                """
+            },
+            timeout=20,
+        )
+        response.raise_for_status()
+        records = response.json()["data"]["recentRecords"]
+        if not isinstance(records, list):
+            raise ValueError("WCA Live recentRecords response has invalid data")
+        return records
 
     async def _process_wca_live_records(
         self,
@@ -1369,7 +1604,7 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                 continue
 
             send_records = ordered_record_group(send_records)
-            q = build_record_group_embed(send_records)
+            q = build_record_group_embed(send_records, source=source)
 
             channel = target.get("channel")
             try:
@@ -1449,23 +1684,27 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
     @discord.command(
         name="recordsource",
         description="Enable or disable a global automatic record source.",
-        guild_ids=primary_guild_ids(),
+        guild_ids=RECORD_SOURCE_GUILD_IDS,
     )
     @discord.option(
         name="source",
         description="Record source to control.",
-        choices=list(RECORD_SOURCE_DEFAULTS),
+        choices=RECORD_SOURCE_CHOICES,
         required=True,
     )
     @discord.option(
-        name="enabled",
-        description="Whether this source should be enabled.",
-        input_type=bool,
+        name="state",
+        description="Whether the selected source should be on or off.",
+        choices=RECORD_SOURCE_STATE_CHOICES,
         required=True,
     )
     @commands.cooldown(1, 2, commands.BucketType.member)
-    async def recordsource(self, ctx, source: str, enabled: bool):
-        if not await ensure_primary_guild(ctx, self.bot):
+    async def recordsource(self, ctx, source: str, state: str):
+        if getattr(ctx, "guild_id", None) not in RECORD_SOURCE_GUILD_IDS:
+            await ctx.respond(
+                "This command is only available in the Slovenian server.",
+                ephemeral=True,
+            )
             return
         if not can_control_record_sources(ctx.author):
             await ctx.respond(
@@ -1473,13 +1712,34 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                 ephemeral=True,
             )
             return
-        await ctx.defer(ephemeral=True)
+        await ctx.defer(ephemeral=False)
+
+        if source != "all" and source not in RECORD_SOURCE_DEFAULTS:
+            await ctx.edit(content="Unknown record source. Nothing was changed.")
+            return
+        if state not in {"on", "off"}:
+            await ctx.edit(content="Unknown source state. Nothing was changed.")
+            return
+        enabled = state == "on"
+        affected_sources = (
+            list(RECORD_SOURCE_DEFAULTS)
+            if source == "all"
+            else [source]
+        )
 
         apply_error = None
         try:
             async with self.records_check_lock:
                 self.record_source_states = save_record_source_state(source, enabled)
-                if source == "cubing_china" and not self._record_source_enabled(source):
+                if (
+                    "wca_live" in affected_sources
+                    and not self._record_source_enabled("wca_live")
+                ):
+                    self._stop_wca_live_confirmation()
+                if (
+                    "cubing_china" in affected_sources
+                    and not self._record_source_enabled("cubing_china")
+                ):
                     try:
                         await self._sync_cubing_china_workers([])
                     except Exception as exc:
@@ -1494,12 +1754,15 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
             )
             return
 
-        effective = self._record_source_enabled(source)
-        if enabled and effective:
-            self.bot.loop.create_task(self._run_enabled_record_source_once(source))
+        if enabled:
+            for affected_source in affected_sources:
+                if self._record_source_enabled(affected_source):
+                    self.bot.loop.create_task(
+                        self._run_enabled_record_source_once(affected_source)
+                    )
 
         print(
-            f"[INFO] record source {source} set to {enabled} "
+            f"[INFO] record source {source} set to {state.upper()} "
             f"by user {ctx.author.id}"
         )
 
@@ -1510,35 +1773,6 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
                 "workers could not be stopped cleanly."
             )
         await ctx.edit(content=response)
-
-    @discord.command(
-        name="recordsources",
-        description="Show global automatic record source states.",
-        guild_ids=primary_guild_ids(),
-    )
-    @commands.cooldown(1, 2, commands.BucketType.member)
-    async def recordsources(self, ctx):
-        if not await ensure_primary_guild(ctx, self.bot):
-            return
-        if not can_control_record_sources(ctx.author):
-            await ctx.respond(
-                "You don't have permission to view record source controls.",
-                ephemeral=True,
-            )
-            return
-        await ctx.defer(ephemeral=True)
-
-        try:
-            self._refresh_record_source_states()
-        except Exception as exc:
-            print(f"[ERROR] record source settings load failed: {exc}")
-            traceback.print_exc()
-            await ctx.edit(
-                content="The source settings could not be loaded.",
-            )
-            return
-
-        await ctx.edit(content=self._record_source_status_text())
 
     async def _wca_official_records_check(self):
         targets = load_live_record_targets()
@@ -1618,7 +1852,7 @@ class liveRecordsCog(commands.Cog, name="live records monitor"):
             return
 
         send_records = ordered_record_group(send_records)
-        q = build_record_group_embed(send_records)
+        q = build_record_group_embed(send_records, source="wca_official")
 
         channel = target.get("channel")
         try:

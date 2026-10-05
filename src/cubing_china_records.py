@@ -82,6 +82,7 @@ def live_result_to_records(result, competition, event_name):
         },
         "round": {
             "id": round_id,
+            "number": result.get("roundNumber"),
             "competitionEvent": {
                 "event": {
                     "id": event_id,
@@ -91,6 +92,7 @@ def live_result_to_records(result, competition, event_name):
                     "id": competition_id,
                     "wcaId": competition_id,
                     "name": str(competition.get("name") or competition_id),
+                    "cubingChinaAlias": competition_alias,
                 },
             },
         },
